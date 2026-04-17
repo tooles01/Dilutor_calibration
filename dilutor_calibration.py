@@ -21,9 +21,17 @@ current_dir = os.getcwd()
 file_directory = os.path.join(current_dir,'calibration_tables')
 
 # File names
+#olfa_file = 'dilutor_olfa.csv'
+#air_file = 'dilutor_air.csv'
+#vac_file = 'dilutor_vac.csv'
 olfa_file = 'olfa_main_2026-04-10.csv'
 air_file = 'olfa_air_2026-04-10.csv'
 vac_file = 'olfa_vac_2026-04-10.csv'
+
+olfa_file = 'olfa_main_2026-04-10 - Copy.csv'
+air_file = 'olfa_air_2026-04-10 - Copy.csv'
+vac_file = 'olfa_vac_2026-04-10 - Copy.csv'
+
 
 def load_csv(full_directory):
     '''
@@ -48,17 +56,13 @@ def load_csv(full_directory):
 
 def fit_linear(mfc_values,flowmeter_values):
     '''
-    Give it the lists of mfc_values and flowmeter_values
-    Fits linear to it
+    Give it the lists of mfc_values and flowmeter_values, Fits linear to it
     '''
 
-    # poly1 is an array
-    poly1 = np.polyfit(mfc_values, flowmeter_values, 1)  # 1st degree (linear)
+    poly1 = np.polyfit(mfc_values, flowmeter_values, 1)  # 1st degree (linear)  (poly1 is an array)    
+    fit1 = np.poly1d(poly1)     # Create polynomial functions from the coefficients (these are polynomial class)
     
-    # Create polynomial functions from the coefficients (these are polynomial class)
-    fit1 = np.poly1d(poly1)
-    
-    return fit1,poly1       # array, polynomial class
+    return fit1,poly1           # array, polynomial class
 
 def plot_everything(ax,mfc_values,flowmeter_values,fit_olfa,mfc_vac,flowmeter_vac,fit_vac,mfc_air,flowmeter_air,fit_air):
     '''Plot data points and fitted lines for all 3 MFCs'''
@@ -113,13 +117,28 @@ def main():
         olfa_FM_1000 = flowmeter_values[index]
     except ValueError:
         print("warning: no olfa value at 1000 was recorded")
-        olfa_FM_1000 = fit_olfa(1000)    
+        olfa_FM_1000 = fit_olfa(1000)
+    
+    '''
+    try:
+        index = mfc_values.index(0)
+        olfa_FM_0 = flowmeter_values[index]
+    except ValueError:
+        print("warning: no olfa value at 0 was recorded")
+        olfa_FM_0 = fit_olfa(0)
+    '''
+    
     # Adjust the vacuum flowmeter values
     vac_FM_adjusted = []
     vac_FM_adjusted = [olfa_FM_1000 - fm_vac_value for fm_vac_value in flowmeter_vac]   # olfa 1000 - vac reading
     
     '''Calculate the linear fit for air and vac MFCs'''
     fit_air,poly_air = fit_linear(mfc_air,flowmeter_air)
+    '''
+    fit_vac,poly_vac = fit_linear(mfc_vac,flowmeter_vac)
+    vac_MFC_0 = (olfa_FM_0-poly_vac[1])/poly_vac[0]
+    '''
+    
     fit_vac_adj,poly_vac_adj = fit_linear(mfc_vac,vac_FM_adjusted)
 
     '''Plot it'''
@@ -143,7 +162,66 @@ def main():
     air_mfc_value = calculate_mfc_linear(poly_air,olfa_FM_dil_value)
     vac_mfc_value = calculate_mfc_linear(poly_vac_adj,olfa_FM_dil_value)
     print(f"Calculated Air MFC value: {air_mfc_value:.4f}")
-    print(f"Calculated Vac MFC value: {vac_mfc_value:.2f}")    
+    print(f"Calculated Vac MFC value: {vac_mfc_value:.2f}")
+
+
+    '''
+    # Get the vac MFC value
+    # Get the olfa flowmeter value at 1000
+    index = mfc_values.index(1000)
+    olfa_FM_1000 = flowmeter_values[index]
+
+
+    # Get the value we are looking for for the vacuum
+    vac_FM_value_to_look_for = olfa_FM_1000 - olfa_FM_dil_value
+
+    # Find the vacuum value for that flowmeter value
+    poly_vac_shifted = fit_vac - vac_FM_value_to_look_for
+    mfc_vac_solution = poly_vac_shifted.roots[0]
+
+       
+
+    # Calculate what that should be for each MFC
+
+    # Get the flowmeter value for the olfa at that value
+    flowmeter_value_dilution = fit_olfa(dilute_to)
+
+    # Get the air MFC value for that flowmeter value
+    # Subtract the target value to find where polynomial equals flowmeter_reading
+    # We want to solve: poly1(x) - flowmeter_reading = 0
+    #poly_air_shifted = np.poly1d(poly_air) - flowmeter_value_dilution
+    poly_air_shifted = fit_air - flowmeter_value_dilution
+
+    # Find the roots (x values where the equation equals zero)
+    mfc_air_solution = poly_air_shifted.roots[0]  # For linear, there's only one real root
+
+    #print(f"Flowmeter reading: {flowmeter_value_dilution}")
+    print(f"Calculated Air MFC value: {mfc_air_solution:.2f}")
+
+    # Repeat for vac
+    #poly_vac_shifted = fit_vac - flowmeter_value_dilution
+    #mfc_vac_solution = poly_vac_shifted.roots[0]
+    print(f"Calculated Vac MFC value: {mfc_vac_solution:.2f}")
+    '''
+
+    '''
+    # solve the equation in reverse
+    # Your 2nd degree polynomial coefficients
+    #poly2 = np.polyfit(mfc_values, flowmeter_values, 2)  # [a, b, c]
+    poly2 = poly_air
+    # Given a flowmeter value, find the MFC value
+    #target_flowmeter = 340.0  # Your known flowmeter value
+    target_flowmeter = flowmeter_value_dilution
+
+    # Rearrange: ax² + bx + c - target = 0
+    coefficients = [poly2[0], poly2[1], poly2[2] - target_flowmeter]
+
+    # Solve for x (MFC value)
+    solutions = np.roots(coefficients)
+
+    print("Solutions:", solutions)
+    print("Real solution:", solutions[0].real if np.isreal(solutions[0]) else solutions[1].real)
+    '''
 
 
 if __name__ == "__main__":
