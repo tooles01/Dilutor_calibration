@@ -21,16 +21,12 @@ current_dir = os.getcwd()
 file_directory = os.path.join(current_dir,'calibration_tables')
 
 # File names
-#olfa_file = 'dilutor_olfa.csv'
-#air_file = 'dilutor_air.csv'
-#vac_file = 'dilutor_vac.csv'
-olfa_file = 'olfa_main_2026-04-10.csv'
-air_file = 'olfa_air_2026-04-10.csv'
-vac_file = 'olfa_vac_2026-04-10.csv'
+olfa_file = '2026-04-17_olfa_mfc.csv'
+air_file = '2026-04-17_air_mfc.csv'
+vac_file = '2026-04-17_vac_mfc.csv'
 
-olfa_file = 'olfa_main_2026-04-10 - Copy.csv'
-air_file = 'olfa_air_2026-04-10 - Copy.csv'
-vac_file = 'olfa_vac_2026-04-10 - Copy.csv'
+dilute_to = 970
+dilute_to = 900
 
 
 def load_csv(full_directory):
@@ -54,49 +50,46 @@ def load_csv(full_directory):
 
     return mfc_values,flowmeter_values
 
-def fit_linear(mfc_values,flowmeter_values):
+def fit_quadratic(mfc_values,flowmeter_values):
     '''
-    Give it the lists of mfc_values and flowmeter_values, Fits linear to it
+    Give it the lists of mfc_values and flowmeter_values, Fits quadratic to it
     '''
 
-    poly1 = np.polyfit(mfc_values, flowmeter_values, 1)  # 1st degree (linear)  (poly1 is an array)    
-    fit1 = np.poly1d(poly1)     # Create polynomial functions from the coefficients (these are polynomial class)
+    poly2 = np.polyfit(mfc_values, flowmeter_values, 2)  # 2nd degree (quadratic) (poly2 is an array)    
+    fit2 = np.poly1d(poly2)     # Create polynomial functions from the coefficients (these are polynomial class)
     
-    return fit1,poly1           # array, polynomial class
+    return fit2,poly2           # array, polynomial class    
 
-def plot_everything(ax,mfc_values,flowmeter_values,fit_olfa,mfc_vac,flowmeter_vac,fit_vac,mfc_air,flowmeter_air,fit_air):
-    '''Plot data points and fitted lines for all 3 MFCs'''
+def calculate_mfc_quadratic(poly_,olfa_FM_dil_value):
+    # Subtract the target value to find where polynomial equals flowmeter_reading
+    coefficients = [poly_[0],poly_[1],poly_[2] - olfa_FM_dil_value]
 
-    # Generate smooth x values for plotting the fitted curves
-    x_smooth = np.linspace(min(mfc_values), max(mfc_values), 100)
+    # Solve for x (MFC value)
+    solutions = np.roots(coefficients)
 
-    # Plot original data points
-    ax.scatter(mfc_values, flowmeter_values, color='r', s=100, label='Olfa MFC', zorder=5)
-    ax.scatter(mfc_vac, flowmeter_vac, color='g', s=100, label='Vacuum MFC', zorder=5)
-    ax.scatter(mfc_air, flowmeter_air, color='b', s=100, label='Air MFC', zorder=5)
-    # Plot fitted curves
-    ax.plot(x_smooth, fit_olfa(x_smooth), 'r-',linewidth=2)
-    ax.plot(x_smooth, fit_vac(x_smooth), 'g-', linewidth=2)
-    ax.plot(x_smooth, fit_air(x_smooth), 'b-', linewidth=2)
+    #print("Solutions:", solutions)
+    #print("Real solution:", solutions[0].real if np.isreal(solutions[0]) else solutions[1].real)
 
-    # Labels and formatting
-    ax.set_xlabel('MFC set to (SCCM)', fontsize=12)
-    ax.set_ylabel('Flowmeter Reading (Vdc)', fontsize=12)
-    ax.set_title('Calibration Results', fontsize=14)
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    plt.show(block=False)   # Non-blocking (script can continue running)
-    plt.pause(0.001)        # Give it time to load the plot
+    the_solution = None
+    # Since it's quadratic there will be two, so pick the one that.... is between 0 and 1000
+    for solution in solutions:
+        #if (solution > 0) and (solution < 1000):
+        #    the_solution = solution
+        #    break
+        if np.isreal(solution):
+            if (solution > 0):
+                if (solution < 1000):
+                    the_solution = solution
+                    break
+                else:
+                    the_solution = solution
+                    print("solution is larger than 1000")
 
-def calculate_mfc_linear(poly_,olfa_FM_dil_value):
-    '''use poly1d to calculate MFC value from flowmeter value (simple algebraic inversion)'''
     
-    slope = poly_[0]
-    intercept = poly_[1]
-    mfc_value = (olfa_FM_dil_value-intercept)/slope
+    if the_solution is None:
+        print("big error")
 
-    return mfc_value
-
+    return the_solution
 
 def main():
     '''Load in the 3 csvs'''
@@ -107,121 +100,104 @@ def main():
     full_dir_air = os.path.join(file_directory,air_file)
     mfc_air,flowmeter_air = load_csv(full_dir_air)
     
-    '''Calculate the linear fit for main olfa MFC'''
-    fit_olfa,poly_olfa = fit_linear(mfc_values,flowmeter_values)
-    
-    '''Convert the vacuum values'''
-    # Get the olfa flowmeter reading at 1000 SCCM (Using the polynomial we just calculated)
-    try:
-        index = mfc_values.index(1000)
-        olfa_FM_1000 = flowmeter_values[index]
-    except ValueError:
-        print("warning: no olfa value at 1000 was recorded")
-        olfa_FM_1000 = fit_olfa(1000)
-    
-    '''
-    try:
-        index = mfc_values.index(0)
-        olfa_FM_0 = flowmeter_values[index]
-    except ValueError:
-        print("warning: no olfa value at 0 was recorded")
-        olfa_FM_0 = fit_olfa(0)
-    '''
-    
-    # Adjust the vacuum flowmeter values
-    vac_FM_adjusted = []
-    vac_FM_adjusted = [olfa_FM_1000 - fm_vac_value for fm_vac_value in flowmeter_vac]   # olfa 1000 - vac reading
-    
-    '''Calculate the linear fit for air and vac MFCs'''
-    fit_air,poly_air = fit_linear(mfc_air,flowmeter_air)
-    '''
-    fit_vac,poly_vac = fit_linear(mfc_vac,flowmeter_vac)
-    vac_MFC_0 = (olfa_FM_0-poly_vac[1])/poly_vac[0]
-    '''
-    
-    fit_vac_adj,poly_vac_adj = fit_linear(mfc_vac,vac_FM_adjusted)
+    '''Calculate the quadratic fit for MFCs'''
+    fit_olfa,poly_olfa = fit_quadratic(mfc_values,flowmeter_values)
+    fit_air,poly_air = fit_quadratic(mfc_air,flowmeter_air)
+    fit_vac,poly_vac = fit_quadratic(mfc_vac,flowmeter_vac)
 
-    '''Plot it'''
-    fig1,ax1 = plt.subplots()
-    fig1.canvas.manager.set_window_title("Fig 1")
-    plot_everything(ax1,mfc_values,flowmeter_values,fit_olfa,mfc_vac,vac_FM_adjusted,fit_vac_adj,mfc_air,flowmeter_air,fit_air)
-    fig1.tight_layout()
-    
-    '''Enter the dilution number you want'''
-    dilute_to = 400
-    
     '''Get the olfa flowmeter value at the number we want to dilute to'''
-    olfa_FM_dil_value = fit_olfa(dilute_to) # this does not seem to be correct bc it's not linear
+    olfa_FM_dil_value = fit_olfa(dilute_to)
     print(f"Dilution value: {dilute_to:.2f}")
     print(f"Olfa FM equivalent: {olfa_FM_dil_value:.4f}")
-    label = f"Flowmeter value for {dilute_to} SCCM"
-    ax1.axhline(y=olfa_FM_dil_value,color='black',linestyle='--',label=label)
-    ax1.legend()
+
+    ################################################################
+
+    '''Calculate air MFC value'''
+    air_mfc_value = calculate_mfc_quadratic(poly_air,olfa_FM_dil_value)
     
-    '''Calculate air and vac MFC values'''
-    air_mfc_value = calculate_mfc_linear(poly_air,olfa_FM_dil_value)
-    vac_mfc_value = calculate_mfc_linear(poly_vac_adj,olfa_FM_dil_value)
-    print(f"Calculated Air MFC value: {air_mfc_value:.4f}")
+    '''Plot olfa and air side by side'''
+    fig_oa, (ax_o1,ax_a) = plt.subplots(1,2, figsize=(12,5),sharex=True,sharey=True)
+    
+    # Olfa
+    x_olfa = np.linspace(min(mfc_values), max(mfc_values), 100)
+    ax_o1.scatter(mfc_values,flowmeter_values,color='r')#,label='Olfa')
+    ax_o1.set_title('Olfa MFC Calibration')
+    ax_o1.plot(x_olfa, fit_olfa(x_olfa),'r',linewidth=2)
+    
+    # Air
+    x_air = np.linspace(min(mfc_air), max(mfc_air), 100)
+    ax_a.scatter(mfc_air,flowmeter_air,color='b')#,label='Air')
+    ax_a.set_title('Air MFC Calibration')
+    ax_a.plot(x_air, fit_air(x_air),'b',linewidth=2)
+
+    # Horizontal line at flowmeter value
+    ax_o1.axhline(y=olfa_FM_dil_value,color='k',label=f'{round(olfa_FM_dil_value,2)} V ({dilute_to} SCCM)')
+    ax_a.axhline(y=olfa_FM_dil_value,color='k',label=f'{round(olfa_FM_dil_value,2)} V ---> set MFC to {round(air_mfc_value,2)} SCCM')
+    
+    # Vertical line at MFC setting
+    ax_a.axvline(x=air_mfc_value,color='b')
+
+    ax_o1.grid(True, alpha=0.3)
+    ax_a.grid(True, alpha=0.3)
+    ax_o1.legend(loc='upper left')
+    ax_a.legend(loc='upper left')
+    ax_o1.set_xlabel('MFC setting (SCCM)', fontsize=12)
+    ax_a.set_xlabel('MFC setting (SCCM)', fontsize=12)
+    ax_o1.set_ylabel('Flowmeter Reading (Vdc)', fontsize=12)
+    ax_a.set_ylabel('Flowmeter Reading (Vdc)', fontsize=12)
+    ax_o1.set_xlim([-50, 1050])
+    ax_o1.set_ylim([.5, 5.5])
+    fig_oa.tight_layout()
+
+    ################################################################
+
+    '''Calculate vac MFC value'''
+    # vac flowmeter value is olfa function at 1000-setpoint
+    vac_fm_value = fit_olfa(1000-dilute_to)
+    vac_mfc_value = calculate_mfc_quadratic(poly_vac,vac_fm_value)
+
+    '''Plot olfa and vac side by side'''
+    fig_ov, (ax_o2,ax_v) = plt.subplots(1,2, figsize=(12,5),sharex=True,sharey=True)
+    
+    # Olfa
+    x_olfa = np.linspace(min(mfc_values), max(mfc_values), 100)
+    ax_o2.scatter(mfc_values,flowmeter_values,color='r')
+    ax_o2.set_title('Olfa MFC Calibration')
+    ax_o2.plot(x_olfa, fit_olfa(x_olfa),'r',linewidth=2)
+
+    # Vac
+    x_vac = np.linspace(min(mfc_vac), max(mfc_vac), 100)
+    ax_v.scatter(mfc_vac,flowmeter_vac,color='g')
+    ax_v.set_title('Vac MFC Calibration')
+    ax_v.plot(x_vac, fit_vac(x_vac),'g',linewidth=2)
+    
+    # Olfa at (1000-dilution value)
+    vac_mfc_dil_value = 1000-dilute_to
+    vac_FM_dil_value = fit_olfa(vac_mfc_dil_value)
+    
+    # Horizontal line at flowmeter value
+    ax_o2.axhline(y=vac_FM_dil_value,color='k',label=f'FM at [1000-{dilute_to}] SCCM  = ({round(vac_FM_dil_value,2)} V)')
+    ax_v.axhline(y=vac_FM_dil_value,color='k',label=f'{round(vac_FM_dil_value,2)} V ---> set MFC to {round(vac_mfc_value,2)} SCCM')
+
+    # Vertical line at MFC setting
+    ax_v.axvline(x=vac_mfc_value,color='g')
+    
+    ax_o2.grid(True, alpha=0.3)
+    ax_v.grid(True, alpha=0.3)
+    ax_o2.legend(loc='upper left')
+    ax_v.legend(loc='upper left')
+    ax_o2.set_xlabel('MFC setting (SCCM)', fontsize=12)
+    ax_v.set_xlabel('MFC setting (SCCM)', fontsize=12)
+    ax_o2.set_ylabel('Flowmeter Reading (Vdc)', fontsize=12)
+    ax_v.set_ylabel('Flowmeter Reading (Vdc)', fontsize=12)
+    ax_o2.set_xlim([-50, 1050])
+    ax_o2.set_ylim([.5, 5.5])
+    fig_ov.tight_layout()
+    
+    ################################################################
+    
+    print(f"Calculated Air MFC value: {air_mfc_value:.2f}")
     print(f"Calculated Vac MFC value: {vac_mfc_value:.2f}")
-
-
-    '''
-    # Get the vac MFC value
-    # Get the olfa flowmeter value at 1000
-    index = mfc_values.index(1000)
-    olfa_FM_1000 = flowmeter_values[index]
-
-
-    # Get the value we are looking for for the vacuum
-    vac_FM_value_to_look_for = olfa_FM_1000 - olfa_FM_dil_value
-
-    # Find the vacuum value for that flowmeter value
-    poly_vac_shifted = fit_vac - vac_FM_value_to_look_for
-    mfc_vac_solution = poly_vac_shifted.roots[0]
-
-       
-
-    # Calculate what that should be for each MFC
-
-    # Get the flowmeter value for the olfa at that value
-    flowmeter_value_dilution = fit_olfa(dilute_to)
-
-    # Get the air MFC value for that flowmeter value
-    # Subtract the target value to find where polynomial equals flowmeter_reading
-    # We want to solve: poly1(x) - flowmeter_reading = 0
-    #poly_air_shifted = np.poly1d(poly_air) - flowmeter_value_dilution
-    poly_air_shifted = fit_air - flowmeter_value_dilution
-
-    # Find the roots (x values where the equation equals zero)
-    mfc_air_solution = poly_air_shifted.roots[0]  # For linear, there's only one real root
-
-    #print(f"Flowmeter reading: {flowmeter_value_dilution}")
-    print(f"Calculated Air MFC value: {mfc_air_solution:.2f}")
-
-    # Repeat for vac
-    #poly_vac_shifted = fit_vac - flowmeter_value_dilution
-    #mfc_vac_solution = poly_vac_shifted.roots[0]
-    print(f"Calculated Vac MFC value: {mfc_vac_solution:.2f}")
-    '''
-
-    '''
-    # solve the equation in reverse
-    # Your 2nd degree polynomial coefficients
-    #poly2 = np.polyfit(mfc_values, flowmeter_values, 2)  # [a, b, c]
-    poly2 = poly_air
-    # Given a flowmeter value, find the MFC value
-    #target_flowmeter = 340.0  # Your known flowmeter value
-    target_flowmeter = flowmeter_value_dilution
-
-    # Rearrange: ax² + bx + c - target = 0
-    coefficients = [poly2[0], poly2[1], poly2[2] - target_flowmeter]
-
-    # Solve for x (MFC value)
-    solutions = np.roots(coefficients)
-
-    print("Solutions:", solutions)
-    print("Real solution:", solutions[0].real if np.isreal(solutions[0]) else solutions[1].real)
-    '''
 
 
 if __name__ == "__main__":
