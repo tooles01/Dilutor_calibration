@@ -1,8 +1,17 @@
 /*
-readHoneywell5100V.ino
-
-Read flow sensor from Arduino
-*/
+ * read_flow_sensor.ino
+ * 
+ * Reads an analog flow sensor on pin A2 and outputs readings via serial port.
+ * Sampling rate and can be adjusted through serial command.
+ * (e.g., "MM_timebt_100" sets sampling rate to 100ms between readings).
+ * 
+ * Serial Baud Rate: 9600
+ * 
+ * Intended for use with Honeywell 3000/5000 series flow sensors
+ * 
+ * 
+ * ST 2026
+ */
 
 const int analogInPin = A2;
 int sensorValue = 0;
