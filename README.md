@@ -26,7 +26,7 @@ PyQt5 app for calibrating Honeywell 3000/5000 series flow sensors via Arduino.
    environment_name\scripts\activate.bat
 4. Install dependencies
    ```bash
-   pip install PyQt5 pyserial numpy
+   pip install PyQt5 pyserial numpy pyqtgraph
    ```
 
 5. Run the application
