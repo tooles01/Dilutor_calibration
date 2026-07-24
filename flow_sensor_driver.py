@@ -30,6 +30,7 @@ from PyQt5.QtCore import QTimer
 from serial.tools import list_ports
 import numpy as np
 from datetime import datetime, timedelta
+import pyqtgraph as pg
 
 
 currentDate = str(datetime.date(datetime.now()))
@@ -118,10 +119,33 @@ def convertToSCCM(ardVal, dictionary):
 # CREATE LOGGER
 logger = logging.getLogger(name='flow sensor')
 logger.setLevel(logging.DEBUG)
-if logger.hasHandlers():    logger.handlers.clear()     # removes duplicate log messages
+logger.propagate = False        # removes duplicate log messages
 console_handler = create_console_handler()
 logger.addHandler(console_handler)
 
+from collections import deque
+
+class LivePlot(QWidget):
+    def __init__(self, maxlen=200, parent=None):
+        super().__init__(parent)
+        self.data = deque(maxlen=maxlen)   # rolling buffer
+
+        self.plot_widget = pg.PlotWidget()
+        self.curve = self.plot_widget.plot(pen='y')
+
+        self.plot_widget.setTitle("Flow Sensor Reading", color='w')#,size='10pt')
+        self.plot_widget.setLabel('bottom','Time (s)')
+        self.plot_widget.setLabel('left','Flow Sensor (int)')
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.plot_widget)
+
+    def add_value(self, value: int):
+        """Call this whenever a new integer arrives."""
+        self.data.append(value)
+        x = [i * 0.1 for i in range(len(self.data))]
+        self.curve.setData(x, list(self.data))
+        #self.curve.setData(list(self.data))
 
 class flowSensor(QGroupBox):
 
@@ -147,6 +171,7 @@ class flowSensor(QGroupBox):
         self.create_cal_table_select_box()
         self.create_new_calibration_box()
         self.create_data_receive_box()
+        self.live_plot_widget = LivePlot()
 
         top_layout = QHBoxLayout()
         col1 = QVBoxLayout()
@@ -155,6 +180,7 @@ class flowSensor(QGroupBox):
         col1.addWidget(self.cal_table_select_box)
         col2 = QVBoxLayout()
         col2.addWidget(self.data_receive_box)
+        col2.addWidget(self.live_plot_widget)
         top_layout.addLayout(col1)
         top_layout.addLayout(col2)
 
@@ -167,7 +193,13 @@ class flowSensor(QGroupBox):
         self.connect_box.setMaximumHeight(self.connect_box.sizeHint().height())
         self.new_cal_box.setMaximumHeight(self.new_cal_box.sizeHint().height())
         self.settings_box.setMaximumHeight(self.settings_box.sizeHint().height())
-        self.data_receive_box.setFixedWidth(self.data_receive_box.sizeHint().width())
+        height = self.data_receive_box.sizeHint().height()
+        width = self.data_receive_box.sizeHint().width()
+        #self.data_receive_box.setFixedWidth(self.data_receive_box.sizeHint().width()-100)
+        #self.data_receive_box.setFixedWidth(200)
+        #self.live_plot_widget.setFixedWidth(self.data_receive_box.sizeHint().width())
+        self.data_receive_box.setMaximumHeight(height)
+        self.live_plot_widget.setMaximumHeight(height)
 
         self.cal_file_name_wid.setMinimumWidth(175)
 
@@ -735,6 +767,7 @@ class flowSensor(QGroupBox):
                         if err.args[0] == "'flowSensor' object has no attribute 'intToSccm_dict'":
                             dataStr = str_value + '\t'
                     self.receive_box.append(dataStr)
+                    self.live_plot_widget.add_value(flowVal_int)
 
                     # Send to main window for recording
                     try: self.window().receive_data_from_device('flow sensor','FL',str_value)
