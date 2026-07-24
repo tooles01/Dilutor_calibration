@@ -11,9 +11,7 @@ from PyQt5.QtWidgets import *
 import olfactometry
 from flow_sensor_driver import flowSensor
 
-#olfaConfigFileName = 'olfa_config.json'    # won't open python window
-olfaConfigFileName = 'olfa_config_2MFC.json'
-
+olfaConfigFileName = 'olfa_config.json'
 
 class main_window(QMainWindow):
     # Make a window where we can put stuff
@@ -44,10 +42,6 @@ class main_window(QMainWindow):
                 break
         mfc_i_want.mfcslider.setValue(new_setpoint)     # sets the slider and the text
         mfc_i_want._slider_changed()
-
-        
-        x=1
-
 
 
 if __name__ == "__main__":
