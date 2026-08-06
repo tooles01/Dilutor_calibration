@@ -1,6 +1,6 @@
-# Flow Sensor Driver
+# Dilutor calibration
 
-PyQt5 app for calibrating Honeywell 3000/5000 series flow sensors via Arduino.
+PyQt5 app for calibrating dilutors using Honeywell 3000/5000 series flow sensors
 
 ---
 
@@ -31,32 +31,11 @@ PyQt5 app for calibrating Honeywell 3000/5000 series flow sensors via Arduino.
 
 5. Run the application
    ```bash
-   python run_olfa.py
+   python run_calibration.py
    ```
+
 ---
 
-## Usage
+## Calibrating
 
-1. Plug in Teensy via USB
-2. Click **Refresh** → select COM port → click **Connect**
-3. Live sensor values will appear in the **Data Received** panel
-
-### Calibration
-
-1. Connect to the sensor
-2. In the **New Calibration** panel, enter:
-   - **File name** for the new calibration table
-   - **Duration (s):** how long to collect data per setpoint
-   - **MFC value (SCCM):** the known flow rate being applied
-3. Click **Create File** to create a new `.csv` calibration file
-4. Click **Start** to begin collecting values
-5. When the timer ends, Click **Write to File** to save the result
-6. Repeat for each flow setpoint
-7. Click **End & Save File** when done
-
-Calibration files are saved as `.csv` in `/calibration_tables/`.
-
-## Known Limitations
-
-- Calibration files must use `.txt` extension
-- File paths may cause issues on macOS/Linux
+Follow calibration procedure found [here](docs/Calibration_procedure.md)
