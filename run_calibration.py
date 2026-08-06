@@ -2,7 +2,7 @@
 Open the olfactometry window and the flow sensor window
 
 
-7/16/2026
+ST 2026
 '''
 
 
@@ -12,6 +12,7 @@ import olfactometry
 from flow_sensor_driver import flowSensor
 
 olfaConfigFileName = 'olfa_config.json'
+
 
 class main_window(QMainWindow):
     # Make a window where we can put stuff
@@ -26,7 +27,7 @@ class main_window(QMainWindow):
         layout = QVBoxLayout()
         layout.addWidget(self.flowsensor)
         layout.addWidget(self.olfas)
-        layout.addWidget(self.extra_button)
+        #layout.addWidget(self.extra_button)
 
         self.central_widget = QWidget()
         self.central_widget.setLayout(layout)
