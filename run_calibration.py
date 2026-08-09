@@ -11,7 +11,10 @@ from PyQt5.QtWidgets import *
 import olfactometry
 from flow_sensor_driver import flowSensor
 
-olfaConfigFileName = 'olfa_config.json'
+olfaConfigFileName = 'olfa_config.json'    # mad slow
+#olfaConfigFileName = 'olfa_config_alt.json' # honestly no idea which is slower
+#olfaConfigFileName = 'olfa_config_2MFC.json'
+#olfaConfigFileName = 'olfa_config_1Dilutor.json'
 
 
 class main_window(QMainWindow):
