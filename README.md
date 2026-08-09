@@ -6,8 +6,8 @@ PyQt5 app for calibrating dilutors using Honeywell 3000/5000 series flow sensors
 
 ## Overview
 
-### Set up
-- Add flow sensor to final valve output
+### Setup
+- Add flow sensor to final valve output (script for flow sensor found [here](docs/Flow_sensor_driver.md))
 
 ![image](images/basic_setup.jpeg)
 
@@ -27,7 +27,7 @@ PyQt5 app for calibrating dilutors using Honeywell 3000/5000 series flow sensors
 
 
 #### TODO:
-Calibration confirmation
+Calibration confirmation instructions
 
 ---
 
@@ -36,7 +36,7 @@ Calibration confirmation
 ### Hardware Requirements:
 - Honeywell 3000/5000 flow sensor
 - Arduino/Teensy running `read_flow_sensor.ino`
-- 8-12V power supply
+- 8-9V power supply
 
 ### Software Installation:
 ** Directions for Windows OS only **
