@@ -147,7 +147,7 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
             print('stop - something went wrong')
 
         # Recalculate quadratic & R^2 for the shortened dataset
-        quad_coeffs_1 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,2)
+        quad_coeffs_1 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,2)    # prob change these variable names
         quad_p_1 = np.poly1d(quad_coeffs_1)
         r2_0 = r_squared(flow_vals_this_region,quad_p_1(mfc_vals_this_region))
 
@@ -156,6 +156,18 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
     print(f"   MFC values: \t\t {min(mfc_vals_this_region)} - {max(mfc_vals_this_region)}")
     print(f"   R^2: \t\t {r2_0}")
     print(f"   # of values: \t {len(mfc_vals_this_region)}")
+
+    # Plot this up close for debugging
+    plt.figure()
+    plt.scatter(mfc_vals_this_region,flow_vals_this_region)
+    x_1 = np.linspace(min(mfc_vals_this_region),max(mfc_vals_this_region),100)
+    plt.plot(x_1,quad_p_1(x_1))
+    plt.grid(True)
+    plt.xlabel('MFC values')
+    plt.ylabel('Flow sensor')
+    plt.title('Zoomed in')
+    fig2 = plt.gcf()
+    fig2.canvas.manager.set_window_title('This section data + equation')
 
     # Return everything
     return mfc_vals_this_region,flow_vals_this_region,quad_coeffs_1,quad_p_1,r2_0
@@ -184,112 +196,58 @@ def fit_linear_1(mfc_values,flowmeter_values):
     ax2.scatter(mfc_values,flowmeter_values)
     ax2.set_xlabel('MFC setting (SCCM)')
     ax2.set_ylabel('Flowmeter Reading')
-    ax2.set_title('Overlaid equation 1')
+    ax2.set_title('Overlaid equations')
     ax1.grid(True)
     ax2.grid(True)
     ax1.set_xlim(-50, 1050)
     ax1.set_ylim(-.5, 5.5)
     fig1.canvas.manager.set_window_title('Initial data')
 
+    # -------------------------------------------------------------
     # --- Initial Setup
     # Convert data from list to numpy.ndarray
     mfc_values = np.array(mfc_values)
     flowmeter_values = np.array(flowmeter_values)
-    
+
     # Sort data from lowest --> highest
     sort_idx = np.argsort(mfc_values)
     mfc_values = mfc_values[sort_idx]
     flowmeter_values = flowmeter_values[sort_idx]
-    
-    # --- Get the data & equations for this section
-    mfc_vals_1,flow_vals_1,coeffs_1,p_1,r2_1 = calculate_region_stats(mfc_values,flowmeter_values)
-
-    # Show me just the final equation that worked
-    x_vals = np.linspace(min(mfc_vals_1),max(mfc_vals_1),100)
-    ax2.plot(x_vals, p_1(x_vals), label='Equation 1', color='orange')
-    ax2.legend(loc='upper left')
-
-    # --- Plot this section
-    plt.figure()
-    plt.scatter(mfc_vals_1,flow_vals_1)
-    x_1 = np.linspace(min(mfc_vals_1),max(mfc_vals_1),100)
-    plt.plot(x_1,p_1(x_1))
-    plt.grid(True)
-    plt.xlabel('MFC values')
-    plt.ylabel('Flow sensor')
-    plt.title('First equation')
-    fig2 = plt.gcf()
-    fig2.canvas.manager.set_window_title('First set of data + equation')#
 
 
     # -------------------------------------------------------------
-    # --- Reset everything for round 2
-    # now start at the next value above this 
-    # find the index of the highest value in this first set
-    # highest value in the first dataset
-    max_mfc_set_1 = max(mfc_vals_1)
-    # index of that value within the big dataset ('where' outputs a tuple, so need the [0][0] at the end)
-    index = np.where(mfc_values == max_mfc_set_1)[0][0]
+    # --- Get the data & equations for the first section
+    mfc_vals_1,flow_vals_1,coeffs_1,p_1,r2_1 = calculate_region_stats(mfc_values,flowmeter_values)
 
-    # Get the starting data
+    # Add this equation to the big plot
+    x_vals = np.linspace(min(mfc_vals_1),max(mfc_vals_1),100)
+    ax2.plot(x_vals, p_1(x_vals), label='Equation 1', color='orange')
+    ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
+
+
+    # -------------------------------------------------------------    
+    # --- Define next section starting from the max value of the first section    
+    # Find the maximum MFC value from the previous section
+    max_mfc_prev_section = max(mfc_vals_1)
+
+    # Locate its index in the full dataset
+    index = np.where(mfc_values == max_mfc_prev_section)[0][0]  # np.where returns a tuple of arrays; use [0][0] to extract the first occurrence
+
+    # Get data from this index onward for the next section
     mfc_values_this_region_2 = mfc_values[index:len(mfc_values)]
     flow_values_this_region_2 = flowmeter_values[index:len(mfc_values)]
 
-    # Calculate the initial quadratic and R^2
-    quad_coeffs_2 = np.polyfit(mfc_values_this_region_2,flow_values_this_region_2,2)
-    quad_p_2 = np.poly1d(quad_coeffs_2)
-    r2_2 = r_squared(mfc_values_this_region_2,quad_p_2(flow_values_this_region_2))
-
-    # X-values for plotting
-    x_vals = np.linspace(min(mfc_values_this_region_2),max(mfc_values_this_region_2),100)
-
-    # --- Remove one value from the end, recalculate R^2 until it's > 0.9995
-    r2_threshold = 0.9995  # TODO probably can change this to .999
-    while r2_2 < r2_threshold:
-        # Remove one mfc value and one flowmeter value from the end
-        mfc_values_this_region_2 = mfc_values_this_region_2[0:(len(mfc_values_this_region_2)-1)]
-        flow_values_this_region_2 = flow_values_this_region_2[0:len(flow_values_this_region_2)-1]
-
-        # How many values are left
-        i = len(mfc_values_this_region_2)
-        if i < 5:
-            print('stop')
-
-        # Recalculate R^2
-        quad_coeffs_2 = np.polyfit(mfc_values_this_region_2,flow_values_this_region_2,2)
-        quad_p_2 = np.poly1d(quad_coeffs_2)
-        r2_2 = r_squared(flow_values_this_region_2,quad_p_2(mfc_values_this_region_2))
-        
-        # Show me what this looks like
-        ax2.plot(x_vals, quad_p_2(x_vals))
-            
-    # --- Data for the second equation
-    print('got the second one')
-    coeffs_2 = quad_coeffs_2
-    p_2 = quad_p_2
-
-    # X and Y values
-    mfc_vals_2 = mfc_values_this_region_2
-    flow_vals_2 = flow_values_this_region_2
-
-    # Print out what it is
-    print(f"   MFC values: \t {min(mfc_vals_2)} - {max(mfc_vals_2)}")
-    print(f"   R^2: \t {round(r2_2,5)}")
-    print(f"   # of values: \t {len(mfc_vals_2)}")
+    # -------------------------------------------------------------
+    # --- Get the data & equations for the second section
+    mfc_vals_2,flow_vals_2,coeffs_2,p_2,r2_2 = calculate_region_stats(mfc_values_this_region_2,flow_values_this_region_2)    
     
-    # show me to me rachel
-    plt.figure()
-    plt.scatter(mfc_vals_2,flow_vals_2)
-    x_2 = np.linspace(min(mfc_vals_2),max(mfc_vals_2),100)
-    plt.plot(x_2,p_2(x_2))
-    plt.grid(True)
-    plt.xlabel('MFC values')
-    plt.ylabel('Flow sensor')
-    plt.title('Second equation')
-    fig2 = plt.gcf()
-    fig2.canvas.manager.set_window_title('Second set of data + equation')
+    # Add this equation to the big plot
+    x_vals = np.linspace(min(mfc_vals_2),max(mfc_vals_2),100)
+    ax2.plot(x_vals, p_2(x_vals), label='Equation 2', color='red')
+    ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
 
-    # Show these equations on a single plot
+
+    # Confirmed that data & plots are the same
 
 
     # TODO continue doing this, save the coefficients or whatever
