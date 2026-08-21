@@ -205,7 +205,7 @@ def fit_linear_1(mfc_values,flowmeter_values):
 
     # --- Initialize list of dicts for olfa
     olfa_data_list = []
-
+    
 
     # -------------------------------------------------------------
     # --- Initial Setup
@@ -228,13 +228,20 @@ def fit_linear_1(mfc_values,flowmeter_values):
     ax2.plot(x_vals, p_1(x_vals), label='Equation 1', color='orange')
     ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
 
+    # Set to generic variable names
+    mfc_vals_section = mfc_vals_1
+    flow_vals_section = flow_vals_1
+    coeffs_section = coeffs_1
+    poly1d_section = p_1
+    r2_section = r2_1
+
     # Add this data to the olfa list of dicts
     this_section_dict = {
-        "mfc_values": mfc_vals_1,
-        "flowmeter_values": flow_vals_1,
-        "coefficients": coeffs_1,
-        "poly1d": p_1,
-        "r_2": r2_1
+        "mfc_values": mfc_vals_section,
+        "flowmeter_values": flow_vals_section,
+        "coefficients": coeffs_section,
+        "poly1d": poly1d_section,
+        "r_2": r2_section
     }
     olfa_data_list.append(this_section_dict)
 
@@ -261,13 +268,20 @@ def fit_linear_1(mfc_values,flowmeter_values):
     ax2.plot(x_vals, p_2(x_vals), label='Equation 2', color='red')
     ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
 
+    # Set to generic variable names
+    mfc_vals_section = mfc_vals_2
+    flow_vals_section = flow_vals_2
+    coeffs_section = coeffs_2
+    poly1d_section = p_2
+    r2_section = r2_2
+
     # Add this data to the olfa list of dicts
     this_section_dict = {
-        "mfc_values": mfc_vals_2,
-        "flowmeter_values": flow_vals_2,
-        "coefficients": coeffs_2,
-        "poly1d": p_2,
-        "r_2": r2_2
+        "mfc_values": mfc_vals_section,
+        "flowmeter_values": flow_vals_section,
+        "coefficients": coeffs_section,
+        "poly1d": poly1d_section,
+        "r_2": r2_section
     }
     olfa_data_list.append(this_section_dict)
 
@@ -294,13 +308,20 @@ def fit_linear_1(mfc_values,flowmeter_values):
     ax2.plot(x_vals, p_3(x_vals), label='Equation 3', color='magenta')
     ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
 
+    # Set to generic variable names
+    mfc_vals_section = mfc_vals_3
+    flow_vals_section = flow_vals_3
+    coeffs_section = coeffs_3
+    poly1d_section = p_3
+    r2_section = r2_3
+
     # Add this data to the olfa list of dicts
     this_section_dict = {
-        "mfc_values": mfc_vals_3,
-        "flowmeter_values": flow_vals_3,
-        "coefficients": coeffs_3,
-        "poly1d": p_3,
-        "r_2": r2_3
+        "mfc_values": mfc_vals_section,
+        "flowmeter_values": flow_vals_section,
+        "coefficients": coeffs_section,
+        "poly1d": poly1d_section,
+        "r_2": r2_section
     }
     olfa_data_list.append(this_section_dict)
 
