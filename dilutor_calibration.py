@@ -173,13 +173,8 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
     return mfc_vals_this_region,flow_vals_this_region,quad_coeffs_0,quad_p_0,r2_0
 
 
-def get_next_section():
-    pass
 
-
-
-
-def fit_linear_1(mfc_values,flowmeter_values):
+def fit_piecewise_equations(mfc_values,flowmeter_values):
     '''
     New strategy
         calculate a quadratic fit
@@ -192,6 +187,9 @@ def fit_linear_1(mfc_values,flowmeter_values):
             this is equation [x] for range [x]
         move to the next section and do the same thing
         for as long as it takes
+
+    Returns a list of dicts
+    Each dict is a 1 section of the data
     '''
     
     # --- Plot for debugging
@@ -281,143 +279,7 @@ def fit_linear_1(mfc_values,flowmeter_values):
         print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
         i=i+1
 
-    x=1
-
-    '''
-    NEXT
-    
-    Keep doing this for each section and save the coefficients/ranges somewhere
-
-    then: consider optimizing the equation itself
-    
-    '''
-
-
-    '''
-    Splitting into three sections: linear, quad, linear
-    this works great for the first two sections, but we would need to add more sections
-    the high section is just crazy
-    '''
-
-    # --- Formulaic Boundary Detection ---
-    # Calculate first derivative (slope between consecutive points)
-    d_volts = np.diff(flowmeter_values)
-    d_sccm  = np.diff(mfc_values)
-    slope   = d_volts / d_sccm  # local slope at each interval
-
-    # Normalize slope to detect relative changes
-    slope_norm    = slope / slope.max()
-    slope_smooth = slope_norm
-    #slope_smooth  = np.convolve(slope_norm, np.ones(3)/3, mode='same')  # smooth slightly
-
-    #plt.figure()
-    #plt.scatter(mfc_values,flowmeter_values)
-    #plt.xlabel('MFC setting (SCCM)')
-    #plt.ylabel('Flowmeter Reading')
-
-    # Show me what this looks like
-    fig1, (ax1,ax2) = plt.subplots(1,2, figsize=(12,5))
-    ax1.scatter(mfc_values,flowmeter_values)
-    ax1.set_xlabel('MFC setting (SCCM)')
-    ax1.set_ylabel('Flowmeter Reading')
-    mfc_vals_averaged = [(mfc_values[i] + mfc_values[i+1]) / 2 for i in range(len(mfc_values) - 1)]
-    ax2.scatter(mfc_vals_averaged,slope_norm)
-    ax2.set_xlabel('MFC setting')
-    ax2.set_ylabel('Slope normalized')
-    ax1.grid(True)
-    ax2.grid(True)
-
-
-    # Find where slope drops below thresholds
-    LOW_THRESH  = 0.85   # slope is still steep (low region) (linear)
-    HIGH_THRESH = 0.35   # slope has compressed significantly (high region)
-
-    # Boundary 1: first point where normalized slope drops below LOW_THRESH
-    boundary_low_idx  = np.argmax(slope_smooth < LOW_THRESH)    # if we don't sort, this doesn't work
-    boundary_low_sccm = mfc_values[boundary_low_idx]
-
-    # Boundary 2: first point where normalized slope drops below HIGH_THRESH
-    boundary_high_idx  = np.argmax(slope_smooth < HIGH_THRESH)
-    boundary_high_sccm = mfc_values[boundary_high_idx]
-
-    print(f"Auto-detected boundaries:")
-    print(f" Slope drops below 0.85, this is the transition to the middle region")
-    print(f"  LOW  → MID1  transition: {boundary_low_sccm:.0f} SCCM")
-    print(f" Slope drops below 0.35, this is the transition to the high region")
-    print(f"  MID1  → HIGH transition: {boundary_high_sccm:.0f} SCCM")
-
-    # --- Split into regions ---
-    mask_low  = mfc_values <= boundary_low_sccm
-    mask_mid  = (mfc_values > boundary_low_sccm) & (mfc_values <= boundary_high_sccm)
-    mask_high = mfc_values > boundary_high_sccm
-
-    sccm_low,  volts_low  = mfc_values[mask_low],  flowmeter_values[mask_low]
-    sccm_mid,  volts_mid  = mfc_values[mask_mid],  flowmeter_values[mask_mid]
-    sccm_high, volts_high = mfc_values[mask_high], flowmeter_values[mask_high]
-
-    print(f"\nRegion sizes: LOW={len(sccm_low)}, MID1={len(sccm_mid)}, HIGH={len(sccm_high)} points")
-
-    # --- Fit each region ---
-    coeffs_low  = np.polyfit(sccm_low,  volts_low,  1)  # linear
-    coeffs_mid  = np.polyfit(sccm_mid,  volts_mid,  2)  # quadratic
-    coeffs_high = np.polyfit(sccm_high, volts_high, 1)  # linear
-
-    p_low  = np.poly1d(coeffs_low)
-    p_mid  = np.poly1d(coeffs_mid)
-    p_high = np.poly1d(coeffs_high)
-
-    print(f"\nFitted Equations:")
-    print(f"  LOW  (0–{boundary_low_sccm:.0f}):   V = {coeffs_low[0]:.6f} * SCCM + {coeffs_low[1]:.6f}")
-    print(f"  MID1  ({boundary_low_sccm:.0f}–{boundary_high_sccm:.0f}): V = {coeffs_mid[0]:.2e} * SCCM² + {coeffs_mid[1]:.6f} * SCCM + {coeffs_mid[2]:.6f}")
-    print(f"  HIGH ({boundary_high_sccm:.0f}–{mfc_values.max():.0f}): V = {coeffs_high[0]:.6f} * SCCM + {coeffs_high[1]:.6f}")
-    '''
-    # --- R² ---
-        def r_squared(y_actual, y_predicted):
-            ss_res = np.sum((y_actual - y_predicted) ** 2)
-            ss_tot = np.sum((y_actual - np.mean(y_actual)) ** 2)
-            return 1 - (ss_res / ss_tot)
-    '''
-    
-    print(f"\nR² Values:")
-    print(f"  LOW:  {r_squared(volts_low,  p_low(sccm_low)):.6f}")
-    print(f"  MID1:  {r_squared(volts_mid,  p_mid(sccm_mid)):.6f}")
-    print(f"  HIGH: {r_squared(volts_high, p_high(sccm_high)):.6f}")
-
-    # --- Slope diagnostic plot (helpful for tuning thresholds) ---
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-    # Slope plot
-    axes[0].plot(mfc_values[:-1], slope_smooth, color='purple', label='Normalized Slope (smoothed)')
-    axes[0].axhline(LOW_THRESH,  color='blue', linestyle='--', label=f'Low threshold ({LOW_THRESH})')
-    axes[0].axhline(HIGH_THRESH, color='red',  linestyle='--', label=f'High threshold ({HIGH_THRESH})')
-    axes[0].axvline(boundary_low_sccm,  color='blue', linestyle=':', alpha=0.7)
-    axes[0].axvline(boundary_high_sccm, color='red',  linestyle=':', alpha=0.7)
-    axes[0].set_xlabel("SCCM")
-    axes[0].set_ylabel("Normalized Slope")
-    axes[0].set_title("Slope-Based Boundary Detection")
-    axes[0].legend()
-    axes[0].grid(True)
-
-    # Fit plot
-    axes[1].scatter(mfc_values, flowmeter_values, color='gray', s=20, label='Data', zorder=5)
-    for x, p, label, color in [
-        (sccm_low,  p_low,  f"LOW (0–{boundary_low_sccm:.0f})",                   'blue'),
-        (sccm_mid,  p_mid,  f"MID1 ({boundary_low_sccm:.0f}–{boundary_high_sccm:.0f})", 'green'),
-        (sccm_high, p_high, f"HIGH ({boundary_high_sccm:.0f}–{mfc_values.max():.0f})",   'red'),
-    ]:
-        x_fit = np.linspace(x.min(), x.max(), 300)
-        axes[1].plot(x_fit, p(x_fit), color=color, linewidth=2, label=f"Fit: {label}")
-    axes[1].axvline(boundary_low_sccm,  color='blue', linestyle=':', alpha=0.5)
-    axes[1].axvline(boundary_high_sccm, color='red',  linestyle=':', alpha=0.5)
-    axes[1].set_xlabel("SCCM")
-    axes[1].set_ylabel("Voltage (V)")
-    axes[1].set_title("Piecewise Fit with Auto Boundaries")
-    axes[1].legend()
-    axes[1].grid(True)
-
-    plt.tight_layout()
-    plt.show()
-
+    return olfa_data_list
     
     '''
     # ── Split into three regions ───────────────────────────────────────────
@@ -470,8 +332,7 @@ def main():
     else: ylims = ylims_V
 
     '''Calculate multiple equations for each MFC'''
-    # Linear
-    fit_linear_1(mfc_values,flowmeter_values)
+    olfa_equations = fit_piecewise_equations(mfc_values,flowmeter_values)
 
 
     '''Calculate the quadratic fit for MFCs'''
