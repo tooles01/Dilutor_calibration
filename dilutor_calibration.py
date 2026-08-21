@@ -7,33 +7,37 @@ For the desired dilution value, calculates setpoint for air and vacuum MFCs (to 
 ST 2026
 '''
 
-
 import os, csv
 import numpy as np
 import matplotlib.pyplot as plt
 plt.ion()   # Enable interactive mode
 
-
-# Where the calibration tables are stored
-current_dir = os.getcwd()
-file_directory = os.path.join(current_dir,'calibration_tables')
-
-# For plotting
-ylims_V = [.5, 5.5]
-ylims_int = [102, 1126]
-
 ################################
 # File names
+'''
 olfa_file = '2026-04-17_olfa_mfc.csv'
 air_file = '2026-04-17_air_mfc.csv'
 vac_file = '2026-04-17_vac_mfc.csv'
 olfa_max = 1000
+'''
+
+olfa_file = '2026-08-06_olfa_mfc.csv'
+air_file = '2026-08-06_air_mfc.csv'
+vac_file = '2026-08-06_vac_mfc.csv'
+olfa_max = 958
 
 # Value to dilute to
 dilute_to = 970
 dilute_to = 900
 ################################
 
+
+# Where the calibration tables are stored
+current_dir = os.getcwd()
+file_directory = os.path.join(current_dir,'calibration_tables')
+# For plotting
+ylims_V = [.5, 5.5]
+ylims_int = [102, 1126]
 
 def load_csv(full_filepath):
     '''
