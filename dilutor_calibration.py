@@ -11,6 +11,7 @@ import os, csv
 import numpy as np
 import matplotlib.pyplot as plt
 plt.ion()   # Enable interactive mode
+import warnings
 
 ################################
 # File names
@@ -130,10 +131,20 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
     '''
     r2_threshold = 0.9995  # TODO probably can change this to .999
 
-    # --- Calculate initial quadratic & R^2 for the entire dataset
-    quad_coeffs_0 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,2)
-    quad_p_0 = np.poly1d(quad_coeffs_0)
-    r2_0 = r_squared(flow_vals_this_region, quad_p_0(mfc_vals_this_region))
+    with warnings.catch_warnings():
+        warnings.filterwarnings('error', message='.*Polyfit.*')
+        try:
+            # --- Calculate initial quadratic & R^2 for the entire dataset
+            quad_coeffs_0 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,2)
+            quad_p_0 = np.poly1d(quad_coeffs_0)
+            r2_0 = r_squared(flow_vals_this_region, quad_p_0(mfc_vals_this_region))
+
+        except np.exceptions.RankWarning as e:
+            print('RankWarning: need to lower polynomial degree')
+            # Need to lower the polynomial degree
+            quad_coeffs_0 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,1)
+            quad_p_0 = np.poly1d(quad_coeffs_0)
+            r2_0 = r_squared(flow_vals_this_region, quad_p_0(mfc_vals_this_region))            
 
     # --- Remove one value from the end, recalculate R^2 until it's > 0.9995
     while r2_0 < r2_threshold:
@@ -157,6 +168,7 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
     print(f"   R^2: \t\t {r2_0}")
     print(f"   # of values: \t {len(mfc_vals_this_region)}")
 
+    '''
     # Plot this up close for debugging
     plt.figure()
     plt.scatter(mfc_vals_this_region,flow_vals_this_region)
@@ -168,10 +180,10 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
     plt.title('Zoomed in')
     fig2 = plt.gcf()
     fig2.canvas.manager.set_window_title('This section data + equation')
-
+    '''
+    
     # Return everything
     return mfc_vals_this_region,flow_vals_this_region,quad_coeffs_0,quad_p_0,r2_0
-
 
 
 def fit_piecewise_equations(mfc_values,flowmeter_values):
@@ -276,7 +288,10 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
         x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
         ax2.plot(x_vals, poly1d_section(x_vals), label=f"Equation {i}")
         ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
-        print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
+        if len(coeffs_section) == 3:
+            print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
+        else:
+            print(f"\t V = {coeffs_section[0]:.6f} * SCCM + {coeffs_section[1]:.6f}")
         i=i+1
 
     return olfa_data_list
@@ -333,7 +348,8 @@ def main():
 
     '''Calculate multiple equations for each MFC'''
     olfa_equations = fit_piecewise_equations(mfc_values,flowmeter_values)
-
+    air_equations = fit_piecewise_equations(mfc_air,flowmeter_air)
+    vac_equations = fit_piecewise_equations(mfc_vac,flowmeter_vac)
 
     '''Calculate the quadratic fit for MFCs'''
     fit_olfa,poly_olfa = fit_quadratic(mfc_values,flowmeter_values)
