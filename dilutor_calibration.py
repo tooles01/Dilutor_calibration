@@ -130,14 +130,14 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
     '''
     r2_threshold = 0.9995  # TODO probably can change this to .999
 
-    # --- Calculate initial quadratic & R^2
+    # --- Calculate initial quadratic & R^2 for the entire dataset
     quad_coeffs_0 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,2)
     quad_p_0 = np.poly1d(quad_coeffs_0)
     r2_0 = r_squared(flow_vals_this_region, quad_p_0(mfc_vals_this_region))
 
     # --- Remove one value from the end, recalculate R^2 until it's > 0.9995
     while r2_0 < r2_threshold:
-        # Remove one mfc and one flowmeter value from the end
+        # Remove one mfc value and one flowmeter value from the end
         mfc_vals_this_region = mfc_vals_this_region[0:(len(mfc_vals_this_region)-1)]
         flow_vals_this_region = flow_vals_this_region[0:(len(flow_vals_this_region)-1)]
 
@@ -146,12 +146,12 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
         if i < 5:
             print('stop - something went wrong')
 
-        # Recalculate R^2
+        # Recalculate quadratic & R^2 for the shortened dataset
         quad_coeffs_1 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,2)
         quad_p_1 = np.poly1d(quad_coeffs_1)
         r2_0 = r_squared(flow_vals_this_region,quad_p_1(mfc_vals_this_region))
 
-    # Print out the stats
+    # When done: print out the stats
     print('got one')
     print(f"   MFC values: \t\t {min(mfc_vals_this_region)} - {max(mfc_vals_this_region)}")
     print(f"   R^2: \t\t {r2_0}")
@@ -175,11 +175,7 @@ def fit_linear_1(mfc_values,flowmeter_values):
         for as long as it takes
     '''
     
-    # Set it to something we can work with
-    mfc_values = np.array(mfc_values)
-    flowmeter_values = np.array(flowmeter_values)
-
-    # --- Plot
+    # --- Plot for debugging
     fig1, (ax1,ax2) = plt.subplots(1,2, figsize=(12,5),sharex=True,sharey=True)
     ax1.scatter(mfc_values,flowmeter_values)
     ax1.set_xlabel('MFC setting (SCCM)')
@@ -195,71 +191,23 @@ def fit_linear_1(mfc_values,flowmeter_values):
     ax1.set_ylim(-.5, 5.5)
     fig1.canvas.manager.set_window_title('Initial data')
 
-    # Sort from lowest to highest (so we start at the bottom end of the range)
+    # --- Initial Setup
+    # Convert data from list to numpy.ndarray
+    mfc_values = np.array(mfc_values)
+    flowmeter_values = np.array(flowmeter_values)
+    
+    # Sort data from lowest --> highest
     sort_idx = np.argsort(mfc_values)
     mfc_values = mfc_values[sort_idx]
     flowmeter_values = flowmeter_values[sort_idx]
-
     
-    # X-values for plotting
-    x_vals = np.linspace(min(mfc_values),max(mfc_values),100)
-    
-    # R^2 we want to hit
-    r2_threshold = 0.9995  # TODO probably can change this to .999
-
-    mfc_vals_this_region = mfc_values
-    flow_vals_this_region = flowmeter_values
-
-    # --- Calculate quadratic & R^2 for all of the values
-    quad_coeffs_0 = np.polyfit(mfc_vals_this_region, flow_vals_this_region, 2)
-    quad_p_0 = np.poly1d(quad_coeffs_0)
-    r2_1 = r_squared(flow_vals_this_region, quad_p_0(mfc_vals_this_region))
-
-    # --- Remove one value from the end, recalculate R^2 until it's > 0.9995
-    while r2_1 < r2_threshold:
-        # Remove one mfc value and one flowmeter value from the end
-        mfc_vals_this_region = mfc_vals_this_region[0:(len(mfc_vals_this_region)-1)]
-        flow_vals_this_region = flow_vals_this_region[0:(len(flow_vals_this_region)-1)]
-
-        # Check how many values are left (if we're down to 5, something prob went wrong)
-        i = len(mfc_vals_this_region)
-        if i < 5:
-            print('stop')
-
-        # Recalculate R^2
-        quad_coeffs_1 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,2)
-        quad_p_1 = np.poly1d(quad_coeffs_1)
-        r2_1 = r_squared(flow_vals_this_region,quad_p_1(mfc_vals_this_region))
-        
-        # Show me what this looks like
-        ax2.plot(x_vals, quad_p_1(x_vals))
-    
-    '''
-    # --- Data for the first equation
-    print('got our first one')
-    coeffs_1 = quad_coeffs_1    # Coefficients
-    p_1 = quad_p_1              # Polynomial
-
-        # X and Y values for the first equation
-    mfc_vals_1 = mfc_vals_this_region
-    flow_vals_1 = flow_vals_this_region
-
-    # Print out what it is
-    print(f"   MFC values: \t\t {min(mfc_vals_1)} - {max(mfc_vals_1)}")
-    print(f"   R^2: \t\t {r2_1}")
-    print(f"   # of values: \t {len(mfc_vals_1)}")
-    
-    # Just for now to check if the function works
-    mfc_vals_0 = mfc_vals_1
-    flow_vals_0 = flow_vals_1
-    coeffs_0 = coeffs_1
-    p_0 = quad_p_1
-    r2_0 = r2_1
-    '''
-
-    # Try it with the function you made, see if that works
+    # --- Get the data & equations for this section
     mfc_vals_1,flow_vals_1,coeffs_1,p_1,r2_1 = calculate_region_stats(mfc_values,flowmeter_values)
-    # looks like it came out the same yippee
+
+    # Show me just the final equation that worked
+    x_vals = np.linspace(min(mfc_vals_1),max(mfc_vals_1),100)
+    ax2.plot(x_vals, p_1(x_vals), label='Equation 1', color='orange')
+    ax2.legend(loc='upper left')
 
     # --- Plot this section
     plt.figure()
@@ -296,13 +244,14 @@ def fit_linear_1(mfc_values,flowmeter_values):
     x_vals = np.linspace(min(mfc_values_this_region_2),max(mfc_values_this_region_2),100)
 
     # --- Remove one value from the end, recalculate R^2 until it's > 0.9995
+    r2_threshold = 0.9995  # TODO probably can change this to .999
     while r2_2 < r2_threshold:
         # Remove one mfc value and one flowmeter value from the end
         mfc_values_this_region_2 = mfc_values_this_region_2[0:(len(mfc_values_this_region_2)-1)]
         flow_values_this_region_2 = flow_values_this_region_2[0:len(flow_values_this_region_2)-1]
 
         # How many values are left
-        i = len(mfc_vals_this_region)
+        i = len(mfc_values_this_region_2)
         if i < 5:
             print('stop')
 
@@ -432,13 +381,14 @@ def fit_linear_1(mfc_values,flowmeter_values):
     print(f"  LOW  (0–{boundary_low_sccm:.0f}):   V = {coeffs_low[0]:.6f} * SCCM + {coeffs_low[1]:.6f}")
     print(f"  MID1  ({boundary_low_sccm:.0f}–{boundary_high_sccm:.0f}): V = {coeffs_mid[0]:.2e} * SCCM² + {coeffs_mid[1]:.6f} * SCCM + {coeffs_mid[2]:.6f}")
     print(f"  HIGH ({boundary_high_sccm:.0f}–{mfc_values.max():.0f}): V = {coeffs_high[0]:.6f} * SCCM + {coeffs_high[1]:.6f}")
-
+    '''
     # --- R² ---
-    def r_squared(y_actual, y_predicted):
-        ss_res = np.sum((y_actual - y_predicted) ** 2)
-        ss_tot = np.sum((y_actual - np.mean(y_actual)) ** 2)
-        return 1 - (ss_res / ss_tot)
-
+        def r_squared(y_actual, y_predicted):
+            ss_res = np.sum((y_actual - y_predicted) ** 2)
+            ss_tot = np.sum((y_actual - np.mean(y_actual)) ** 2)
+            return 1 - (ss_res / ss_tot)
+    '''
+    
     print(f"\nR² Values:")
     print(f"  LOW:  {r_squared(volts_low,  p_low(sccm_low)):.6f}")
     print(f"  MID1:  {r_squared(volts_mid,  p_mid(sccm_mid)):.6f}")
