@@ -7,13 +7,93 @@ After getting calibration tables for each MFC, use `dilutor_calibration.py` to p
 ## What it do
 
 - Loads the 3 calibration files
+    <details>
+
+    - For each file:
+        - Get the full directory path:
+            - current directory + 'calibration_tables' + file name
+        - Load the csv in
+            - Start at the third row (first two rows are headers)
+            - Load everything from column 1 into "mfc_values" [list]
+            - Load everything from column 2 into "flowmeter_values" [list]
+
+        Load MFC and flowmeter values from a CSV file.
+
+        Parameters
+        ----------
+        full_directory : str
+            Full path to the CSV file, including the file name and extension.
+            The file is expected to have two header rows (which are skipped)
+            followed by data rows with at least two columns:
+                - Column 1: MFC value
+                - Column 2: Flowmeter value
+
+        Returns
+        -------
+        mfc_values : list of float
+            Values from the first column (MFC readings).
+        flowmeter_values : list of float
+            Values from the second column (Flowmeter readings).
+
+        Notes
+        -----
+        Assumes the CSV uses a standard comma delimiter and that all data
+        rows (after the header) contain valid numeric values in the first
+        two columns.
+        '''
+    </details>
+
+<br>
+
+
+
+
+
+
+# Update 8/20/2026
+- Sort data from lowest to highest
+- Calculate the quadratic fit & R^2 of the entire set of data
+- Calculate the equation for the first (low) section
+    - While the R^2 is less than 0.9995:
+        - Remove one value from the end of the dataset
+        - Recalculate R^2
+        - Error check: If we get to less than 5 values remaining in the dataset, stop
+    - Get the coefficients and the polynomial for this region
+    - Get the array of MFC values and flow values for this region
+- Prep to calculate data for the next section:
+    - Get the max MFC value from the first set
+    - Get the index of where that value is within the big set of data
+    - Get starting MFC and flow values for the next set
+        - Include the last value from set 1
+        - Get from that value ---> end of the data
+
+
+
+
+
+##########################
+
 - Calculates quadratic fit for each MFC
     - We're going to assume this for now because the flow sensor curve is weird
     - Could pos change to linear interpolation between each set of points, depending on number of points
     - or do some stats stuff and find the actual best curve
 
+- Gets the flowmeter value ("ground truth") for the olfa MFC ("ground truth") at the value we want to dilute to
+
+
+- Prints that out
+
+
 
 - Calculates the setting for the air MFC 
+    <details>
+
+    calculate_mfc_quadratic
+
+
+
+<br>
+
 - Calculates the setting for the vac MFC
 
 <!--
