@@ -172,6 +172,13 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
     # Return everything
     return mfc_vals_this_region,flow_vals_this_region,quad_coeffs_1,quad_p_1,r2_0
 
+
+def get_next_section():
+    pass
+
+
+
+
 def fit_linear_1(mfc_values,flowmeter_values):
     '''
     New strategy
@@ -222,12 +229,40 @@ def fit_linear_1(mfc_values,flowmeter_values):
     # -------------------------------------------------------------
     # --- Get the data & equations for the first section
     mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section = calculate_region_stats(mfc_values,flowmeter_values)
+    # Add this data to the olfa list of dicts
+    this_section_dict = {
+        "mfc_values": mfc_vals_section,
+        "flowmeter_values": flow_vals_section,
+        "coefficients": coeffs_section,
+        "poly1d": poly1d_section,
+        "r_2": r2_section
+    }
+    olfa_data_list.append(this_section_dict)
+    mfc_vals_prev_section = mfc_vals_section
 
     # Add this equation to the big plot
     x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
     ax2.plot(x_vals, poly1d_section(x_vals), label='Equation 1', color='orange')
     ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
+    print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
+    
 
+    
+
+    # -------------------------------------------------------------
+    # --- Define next section starting from the max value of the previous section
+    # Find the maximum MFC value from the previous section
+    max_mfc_prev_section = max(mfc_vals_prev_section)
+    # Locate its index in the full dataset
+    index = np.where(mfc_values == max_mfc_prev_section)[0][0]  # np.where returns a tuple of arrays; use [0][0] to extract the first occurrence
+
+    # Get data from this index onward for the next section
+    mfc_values_this_region = mfc_values[index:len(mfc_values)]
+    flow_values_this_region = flowmeter_values[index:len(mfc_values)]
+
+    # -------------------------------------------------------------
+    # --- Get the data & equations for the second section
+    mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section = calculate_region_stats(mfc_values_this_region,flow_values_this_region)
     # Add this data to the olfa list of dicts
     this_section_dict = {
         "mfc_values": mfc_vals_section,
@@ -237,65 +272,31 @@ def fit_linear_1(mfc_values,flowmeter_values):
         "r_2": r2_section
     }
     olfa_data_list.append(this_section_dict)
-    print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
-    
     mfc_vals_prev_section = mfc_vals_section
-
-    # -------------------------------------------------------------
-    # --- Define next section starting from the max value of the previous section
-    # Find the maximum MFC value from the previous section
-    max_mfc_prev_section = max(mfc_vals_prev_section)
-
-    # Locate its index in the full dataset
-    index = np.where(mfc_values == max_mfc_prev_section)[0][0]  # np.where returns a tuple of arrays; use [0][0] to extract the first occurrence
-
-    # Get data from this index onward for the next section
-    mfc_values_this_region_2 = mfc_values[index:len(mfc_values)]
-    flow_values_this_region_2 = flowmeter_values[index:len(mfc_values)]
-
-    # -------------------------------------------------------------
-    # --- Get the data & equations for the second section
-    mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section = calculate_region_stats(mfc_values_this_region_2,flow_values_this_region_2)
 
     # Add this equation to the big plot
     x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
     ax2.plot(x_vals, poly1d_section(x_vals), label='Equation 2', color='red')
-    ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
-    
-    # Add this data to the olfa list of dicts
-    this_section_dict = {
-        "mfc_values": mfc_vals_section,
-        "flowmeter_values": flow_vals_section,
-        "coefficients": coeffs_section,
-        "poly1d": poly1d_section,
-        "r_2": r2_section
-    }
-    olfa_data_list.append(this_section_dict)
+    ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data    
     print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
 
-    mfc_vals_prev_section = mfc_vals_section
 
-    # -------------------------------------------------------------    
+    
+
+    # -------------------------------------------------------------
     # --- Define next section starting from the max value of the previous section
     # Find the maximum MFC value from the previous section
     max_mfc_prev_section = max(mfc_vals_prev_section)
-
     # Locate its index in the full dataset
     index = np.where(mfc_values == max_mfc_prev_section)[0][0]  # np.where returns a tuple of arrays; use [0][0] to extract the first occurrence
 
     # Get data from this index onward for the next section
-    mfc_values_this_region_3 = mfc_values[index:len(mfc_values)]
-    flow_values_this_region_3 = flowmeter_values[index:len(mfc_values)]
+    mfc_values_this_region = mfc_values[index:len(mfc_values)]
+    flow_values_this_region = flowmeter_values[index:len(mfc_values)]
 
     # -------------------------------------------------------------
     # --- Get the data & equations for the third section
-    mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section = calculate_region_stats(mfc_values_this_region_3,flow_values_this_region_3)
-    
-    # Add this equation to the big plot
-    x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
-    ax2.plot(x_vals, poly1d_section(x_vals), label='Equation 3', color='magenta')
-    ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
-        
+    mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section = calculate_region_stats(mfc_values_this_region,flow_values_this_region)
     # Add this data to the olfa list of dicts
     this_section_dict = {
         "mfc_values": mfc_vals_section,
@@ -305,7 +306,15 @@ def fit_linear_1(mfc_values,flowmeter_values):
         "r_2": r2_section
     }
     olfa_data_list.append(this_section_dict)
+
+    # Add this equation to the big plot
+    x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
+    ax2.plot(x_vals, poly1d_section(x_vals), label='Equation 3', color='magenta')
+    ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
     print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
+
+
+
 
 
 
