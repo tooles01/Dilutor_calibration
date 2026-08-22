@@ -339,6 +339,14 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     '''
 
 def find_flow_value_olfa(olfa_data_list, target_value):
+    '''
+    Input:
+        all of the sections for the main olfa MFFC
+        MFC value/setting
+    Returns:
+        section where that MFC value happens
+        equivalent flowmeter value
+    '''
 
     for section in olfa_data_list:
         mfc_vals = section["mfc_values"]
@@ -367,6 +375,16 @@ def find_flow_value_olfa(olfa_data_list, target_value):
     return None
 
 def find_section(data_list, target_value):
+    '''
+    Input:
+        all of the sections for an MFC
+        flowmeter value
+
+    Returns:
+        section where that flowmeter value happens
+        equivalent MFC value
+    
+    '''
     # Check each section to find where this flowmeter value is
     for section in data_list:
         flow_vals = section["flowmeter_values"]
@@ -447,10 +465,27 @@ def main():
     '''Calculate the air MFC value'''
     air_section, air_mfc_value = find_section(air_equations, olfa_FM_dil_value)
     print(f"Calculated Air MFC value: {air_mfc_value:.2f}")
+
+    '''Calculate the vac MFC value'''
+    # vac flowmeter value is olfa function at 1000-setpoint
+    # vac_fm_value = olfa_poly1d(max_olfa-target)
+    # get the olfa_poly1d for this section
+    # except it's no longer one section it is multiple
+    # i guess we fucking average these equations??? idk
+    # equation as a function of (1000-900)
+    # i guess we can start there
+    olfa_val_to_plug_in = olfa_max - dilute_to
+    # what equation do we use for this
+    olfa_section, olfa_FM_dil_value = find_flow_value_olfa(olfa_equations,olfa_val_to_plug_in)
+
+
+
     
     
 
     '''Calculate the quadratic fit for MFCs'''
+    # fit is poly1d
+    # poly is the coefficients
     fit_olfa,poly_olfa = fit_quadratic(mfc_values,flowmeter_values)
     fit_air,poly_air = fit_quadratic(mfc_air,flowmeter_air)
     fit_vac,poly_vac = fit_quadratic(mfc_vac,flowmeter_vac)
@@ -464,8 +499,9 @@ def main():
 
     '''Calculate air MFC value'''
     air_mfc_value = calculate_mfc_quadratic(poly_air,olfa_FM_dil_value)
-    
+
     '''Plot olfa and air side by side'''
+    ''' Temp comment 8/21/2026
     fig_oa, (ax_o1,ax_a) = plt.subplots(1,2, figsize=(12,5),sharex=True,sharey=True)
     
     # Olfa
@@ -498,7 +534,8 @@ def main():
     ax_o1.set_xlim([-50, 1050])
     ax_o1.set_ylim(ylims)
     fig_oa.tight_layout()
-
+    '''
+    
     ################################################################
 
     '''Calculate vac MFC value'''
