@@ -96,6 +96,7 @@ def calculate_mfc_quadratic(poly_,olfa_FM_dil_value):
                     the_solution = solution
                 else:
                     print('\tWARNING WARNING found 2 solutions!!!')
+                    return solutions
             else:
                 print('\tsolution is real but not within range')
         else:
@@ -337,7 +338,7 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     print(f"R² HIGH: {r_squared(flowmet_high, p_high(mfc_vals_high)):.6f}")
     '''
 
-def find_section_for_value(olfa_data_list, target_value):
+def find_flow_value_olfa(olfa_data_list, target_value):
 
     for section in olfa_data_list:
         mfc_vals = section["mfc_values"]
@@ -345,7 +346,7 @@ def find_section_for_value(olfa_data_list, target_value):
         max_val = np.max(mfc_vals)
         
         if min_val <= target_value <= max_val:
-            #print("Value is within this section")
+            # Value is within this section
 
             # Try to find exact match
             matching_indices = np.where(mfc_vals == target_value)[0]
@@ -354,16 +355,70 @@ def find_section_for_value(olfa_data_list, target_value):
                 # Exact match found
                 idx = matching_indices[0]
                 flow_value = section["flowmeter_values"][idx]
-                print(f"Exact match found at index {idx}")
-                print(f"Corresponding flowmeter value: {flow_value}")
+                #print(f"Exact match found at index {idx}")
+                #print(f"Corresponding flowmeter value: {flow_value}")
             else:
                 # No exact match - use the polyfit to get the flow value
                 polyfit = section["poly1d"]
                 flow_value = polyfit(target_value)
-                print(f"No exact match - interpolated flowmeter value: {flow_value}")
-            return section
+                #print(f"No exact match - interpolated flowmeter value: {flow_value}")
+            return section, flow_value
 
     return None
+
+def find_section(data_list, target_value):
+    # Check each section to find where this flowmeter value is
+    for section in data_list:
+        flow_vals = section["flowmeter_values"]
+        mfc_vals = section["mfc_values"]
+        min_val = np.min(flow_vals)
+        max_val = np.max(flow_vals)
+
+        if min_val <= target_value <= max_val:
+
+            # Try to find exact match (for fun)
+            matching_indicies = np.where(flow_vals == target_value)[0]
+
+            if len(matching_indicies) > 0:
+                # Exact match found
+                idx = matching_indicies[0]
+                mfc_value = section["mfc_values"][idx]
+                print(f"Exact match found at index {idx}")
+                print(f"Corresponding flowmeter value: {mfc_value}")
+            else:
+                # No exact match, use the polyfit to get the MFC value
+                coeffs = section["coefficients"]
+                
+                plt.figure(figsize=(10, 6))
+                plt.xlabel('MFC value')
+                plt.ylabel('flowmeter value')
+                plt.grid(True)
+                plt.scatter(mfc_vals,flow_vals,s=100)
+                x_vals = np.linspace(min_val,max_val,100)
+                x_vals = np.linspace(min_val,300,100)
+                poly1d = section["poly1d"]
+                plt.plot(x_vals,poly1d(x_vals))
+                plt.xlim([-50, 1050])
+                plt.ylim(-.5, 5.5)
+
+                # now we have to go back and calculate the quadratic
+                mfc_value = calculate_mfc_quadratic(coeffs,target_value)
+                # If there are two solutions... what do we do
+                # we pick the one that is within this range of mfc values
+                if len(mfc_value) > 1:
+                    print('\tSelecting the mfc value that is in this range')
+                    min_mfc = min(mfc_vals)
+                    max_mfc = max(mfc_vals)
+                    # Thoughts and prayers there are only 2
+                    value1 = mfc_value[0]
+                    value2 = mfc_value[1]
+                    value1_in_range = min_mfc <= value1 <= max_mfc
+                    value2_in_range = min_mfc <= value2 <= max_mfc
+                    if value1_in_range: mfc_value = value1
+                    if value2_in_range: mfc_value = value2
+
+            return section, mfc_value
+
 
 def main():
     '''Load in the 3 csvs'''
@@ -383,13 +438,15 @@ def main():
     air_equations = fit_piecewise_equations(mfc_air,flowmeter_air)
     vac_equations = fit_piecewise_equations(mfc_vac,flowmeter_vac)
 
+    dilute_to = 39
     '''Using these: get the olfa flowmeter value at the number we want to dilute to'''
-    # Find which of the olfa equations has this MFC value in its range
-    section = find_section_for_value(olfa_equations,dilute_to)
+    olfa_section, olfa_FM_dil_value = find_flow_value_olfa(olfa_equations,dilute_to)
+    print(f"Dilution value: {dilute_to:.2f}")
+    print(f"Olfa FM equivalent: {olfa_FM_dil_value:.4f}")
 
-
-
-    # Get that equation (poly1d) and plug the MFC setting in to get the flowmeter value
+    '''Calculate the air MFC value'''
+    air_section, air_mfc_value = find_section(air_equations, olfa_FM_dil_value)
+    print(f"Calculated Air MFC value: {air_mfc_value:.2f}")
     
     
 
