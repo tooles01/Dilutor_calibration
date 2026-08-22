@@ -354,8 +354,6 @@ def find_flow_value_olfa(olfa_data_list, target_value):
         max_val = np.max(mfc_vals)
         
         if min_val <= target_value <= max_val:
-            # Value is within this section
-
             # Try to find exact match
             matching_indices = np.where(mfc_vals == target_value)[0]
 
@@ -363,13 +361,10 @@ def find_flow_value_olfa(olfa_data_list, target_value):
                 # Exact match found
                 idx = matching_indices[0]
                 flow_value = section["flowmeter_values"][idx]
-                #print(f"Exact match found at index {idx}")
-                #print(f"Corresponding flowmeter value: {flow_value}")
             else:
                 # No exact match - use the polyfit to get the flow value
                 polyfit = section["poly1d"]
                 flow_value = polyfit(target_value)
-                #print(f"No exact match - interpolated flowmeter value: {flow_value}")
             return section, flow_value
 
     return None
@@ -406,7 +401,8 @@ def find_section(data_list, target_value):
             else:
                 # No exact match, use the polyfit to get the MFC value
                 coeffs = section["coefficients"]
-                
+
+                '''
                 plt.figure(figsize=(10, 6))
                 plt.xlabel('MFC value')
                 plt.ylabel('flowmeter value')
@@ -418,22 +414,26 @@ def find_section(data_list, target_value):
                 plt.plot(x_vals,poly1d(x_vals))
                 plt.xlim([-50, 1050])
                 plt.ylim(-.5, 5.5)
-
-                # now we have to go back and calculate the quadratic
+                '''
+                
+                # now go back and calculate the quadratic
                 mfc_value = calculate_mfc_quadratic(coeffs,target_value)
-                # If there are two solutions... what do we do
-                # we pick the one that is within this range of mfc values
-                if len(mfc_value) > 1:
-                    print('\tSelecting the mfc value that is in this range')
-                    min_mfc = min(mfc_vals)
-                    max_mfc = max(mfc_vals)
-                    # Thoughts and prayers there are only 2
-                    value1 = mfc_value[0]
-                    value2 = mfc_value[1]
-                    value1_in_range = min_mfc <= value1 <= max_mfc
-                    value2_in_range = min_mfc <= value2 <= max_mfc
-                    if value1_in_range: mfc_value = value1
-                    if value2_in_range: mfc_value = value2
+                # If there are two solutions... we pick the one that is within this range of mfc values
+                try:
+                    if len(mfc_value) > 1:
+                        print('\tSelecting the mfc value that is in this range')
+                        min_mfc = min(mfc_vals)
+                        max_mfc = max(mfc_vals)
+                        # Thoughts and prayers there are only 2
+                        value1 = mfc_value[0]
+                        value2 = mfc_value[1]
+                        value1_in_range = min_mfc <= value1 <= max_mfc
+                        value2_in_range = min_mfc <= value2 <= max_mfc
+                        if value1_in_range: mfc_value = value1
+                        if value2_in_range: mfc_value = value2
+                except TypeError:
+                    # It's a float so nothing to worry about
+                    pass
 
             return section, mfc_value
 
@@ -473,16 +473,20 @@ def main():
     # except it's no longer one section it is multiple
     # i guess we fucking average these equations??? idk
     # equation as a function of (1000-900)
+
     # i guess we can start there
     olfa_val_to_plug_in = olfa_max - dilute_to
     # what equation do we use for this
-    olfa_section, olfa_FM_dil_value = find_flow_value_olfa(olfa_equations,olfa_val_to_plug_in)
+    olfa_section, vac_fm_value = find_flow_value_olfa(olfa_equations,olfa_val_to_plug_in)
+    vac_section, vac_mfc_value = find_section(vac_equations, vac_fm_value)
+    print(f"Calculated Vac MFC value: {vac_mfc_value:.2f}")
 
 
-
+    '''TODO plot this all so we can check it'''
     
-    
 
+    ###################################################################
+    
     '''Calculate the quadratic fit for MFCs'''
     # fit is poly1d
     # poly is the coefficients
