@@ -162,12 +162,14 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
         quad_p_0 = np.poly1d(quad_coeffs_0)
         r2_0 = r_squared(flow_vals_this_region,quad_p_0(mfc_vals_this_region))
 
+    '''
     # When done: print out the stats
     print('got one')
     print(f"   MFC values: \t\t {min(mfc_vals_this_region)} - {max(mfc_vals_this_region)}")
     print(f"   R^2: \t\t {r2_0}")
     print(f"   # of values: \t {len(mfc_vals_this_region)}")
-
+    '''
+    
     '''
     # Plot this up close for debugging
     plt.figure()
@@ -254,7 +256,7 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
     ax2.plot(x_vals, poly1d_section(x_vals), label=f"Equation {i}", color='orange')
     ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
-    print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
+    #print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
     i=i+1
     
     # --- Loop it
@@ -288,10 +290,12 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
         x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
         ax2.plot(x_vals, poly1d_section(x_vals), label=f"Equation {i}")
         ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
+        '''
         if len(coeffs_section) == 3:
             print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
         else:
             print(f"\t V = {coeffs_section[0]:.6f} * SCCM + {coeffs_section[1]:.6f}")
+        '''
         i=i+1
 
     return olfa_data_list
@@ -331,7 +335,35 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     print(f"\nR² LOW:  {r_squared(flowmet_low,  p_low(mfc_vals_low)):.6f}")
     print(f"R² MID:  {r_squared(flowmet_mid,  p_mid(mfc_vals_mid)):.6f}")
     print(f"R² HIGH: {r_squared(flowmet_high, p_high(mfc_vals_high)):.6f}")
-    '''    
+    '''
+
+def find_section_for_value(olfa_data_list, target_value):
+
+    for section in olfa_data_list:
+        mfc_vals = section["mfc_values"]
+        min_val = np.min(mfc_vals)
+        max_val = np.max(mfc_vals)
+        
+        if min_val <= target_value <= max_val:
+            #print("Value is within this section")
+
+            # Try to find exact match
+            matching_indices = np.where(mfc_vals == target_value)[0]
+
+            if len(matching_indices) > 0:
+                # Exact match found
+                idx = matching_indices[0]
+                flow_value = section["flowmeter_values"][idx]
+                print(f"Exact match found at index {idx}")
+                print(f"Corresponding flowmeter value: {flow_value}")
+            else:
+                # No exact match - use the polyfit to get the flow value
+                polyfit = section["poly1d"]
+                flow_value = polyfit(target_value)
+                print(f"No exact match - interpolated flowmeter value: {flow_value}")
+            return section
+
+    return None
 
 def main():
     '''Load in the 3 csvs'''
@@ -350,6 +382,16 @@ def main():
     olfa_equations = fit_piecewise_equations(mfc_values,flowmeter_values)
     air_equations = fit_piecewise_equations(mfc_air,flowmeter_air)
     vac_equations = fit_piecewise_equations(mfc_vac,flowmeter_vac)
+
+    '''Using these: get the olfa flowmeter value at the number we want to dilute to'''
+    # Find which of the olfa equations has this MFC value in its range
+    section = find_section_for_value(olfa_equations,dilute_to)
+
+
+
+    # Get that equation (poly1d) and plug the MFC setting in to get the flowmeter value
+    
+    
 
     '''Calculate the quadratic fit for MFCs'''
     fit_olfa,poly_olfa = fit_quadratic(mfc_values,flowmeter_values)
