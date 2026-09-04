@@ -56,16 +56,19 @@ def load_csv(full_filepath):
 
     mfc_values = []
     flowmeter_values = []
-    
-    with open(full_filepath,newline='') as f:
-        csv_reader = csv.reader(f)      # Create reader object that will process lines from f (file)
-        firstLine = next(csv_reader)    # Skip over header line
-        secondLine = next(csv_reader)   # Skip over second line
-        
-        # Load all of the values in
-        for row in csv_reader:
-            mfc_values.append(float(row[0]))           # First column (MFC_value)
-            flowmeter_values.append(float(row[1]))     # Second column (Flowmeter_value)
+    try:
+        with open(full_filepath,newline='') as f:
+            csv_reader = csv.reader(f)      # Create reader object that will process lines from f (file)
+            firstLine = next(csv_reader)    # Skip over header line
+            secondLine = next(csv_reader)   # Skip over second line
+            
+            # Load all of the values in
+            for row in csv_reader:
+                mfc_values.append(float(row[0]))           # First column (MFC_value)
+                flowmeter_values.append(float(row[1]))     # Second column (Flowmeter_value)
+    except FileNotFoundError as e:
+        print(f"ERROR: File does not exist: {e}")
+        print(f"\t\t This is not going to work")
 
     return mfc_values,flowmeter_values
 
@@ -113,7 +116,7 @@ def r_squared(y_actual, y_predicted):
     ss_tot = np.sum((y_actual - np.mean(y_actual)) ** 2)
     return 1 - (ss_res / ss_tot)
 
-def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
+def calculate_section(mfc_values,flowmeter_values):
     '''
     Calculate all of the data for a given region
 
@@ -128,55 +131,58 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
         flowmeter vals for this section
         coefficients
         polynomial
-        r^2 value?
+        r^2 value
     '''
     r2_threshold = 0.9995  # TODO probably can change this to .999
+
+    mfc_vals_section = mfc_values
+    flow_vals_section = flowmeter_values
 
     with warnings.catch_warnings():
         warnings.filterwarnings('error', message='.*Polyfit.*')
         try:
             # --- Calculate initial quadratic & R^2 for the entire dataset
-            quad_coeffs_0 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,2)
-            quad_p_0 = np.poly1d(quad_coeffs_0)
-            r2_0 = r_squared(flow_vals_this_region, quad_p_0(mfc_vals_this_region))
+            coeffs_section = np.polyfit(mfc_vals_section,flow_vals_section,2)
+            poly1d_section = np.poly1d(coeffs_section)
+            r2_section = r_squared(flow_vals_section, poly1d_section(mfc_vals_section))
 
         except np.exceptions.RankWarning as e:
             print('RankWarning: need to lower polynomial degree')
             # Need to lower the polynomial degree
-            quad_coeffs_0 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,1)
-            quad_p_0 = np.poly1d(quad_coeffs_0)
-            r2_0 = r_squared(flow_vals_this_region, quad_p_0(mfc_vals_this_region))            
+            coeffs_section = np.polyfit(mfc_vals_section,flow_vals_section,1)
+            poly1d_section = np.poly1d(coeffs_section)
+            r2_section = r_squared(flow_vals_section, poly1d_section(mfc_vals_section))            
 
     # --- Remove one value from the end, recalculate R^2 until it's > 0.9995
-    while r2_0 < r2_threshold:
+    while r2_section < r2_threshold:
         # Remove one mfc value and one flowmeter value from the end
-        mfc_vals_this_region = mfc_vals_this_region[0:(len(mfc_vals_this_region)-1)]
-        flow_vals_this_region = flow_vals_this_region[0:(len(flow_vals_this_region)-1)]
+        mfc_vals_section = mfc_vals_section[0:(len(mfc_vals_section)-1)]
+        flow_vals_section = flow_vals_section[0:(len(flow_vals_section)-1)]
 
         # Check how many values are left (if we're down to 5, something prob went wrong)
-        i = len(mfc_vals_this_region)
+        i = len(mfc_vals_section)
         if i < 5:
             print('stop - something went wrong')
 
         # Recalculate quadratic & R^2 for the shortened dataset
-        quad_coeffs_0 = np.polyfit(mfc_vals_this_region,flow_vals_this_region,2)
-        quad_p_0 = np.poly1d(quad_coeffs_0)
-        r2_0 = r_squared(flow_vals_this_region,quad_p_0(mfc_vals_this_region))
+        coeffs_section = np.polyfit(mfc_vals_section,flow_vals_section,2)
+        poly1d_section = np.poly1d(coeffs_section)
+        r2_section = r_squared(flow_vals_section,poly1d_section(mfc_vals_section))
 
     '''
     # When done: print out the stats
     print('got one')
-    print(f"   MFC values: \t\t {min(mfc_vals_this_region)} - {max(mfc_vals_this_region)}")
-    print(f"   R^2: \t\t {r2_0}")
-    print(f"   # of values: \t {len(mfc_vals_this_region)}")
+    print(f"   MFC values: \t\t {min(mfc_vals_section)} - {max(mfc_vals_section)}")
+    print(f"   R^2: \t\t {r2_section}")
+    print(f"   # of values: \t {len(mfc_vals_section)}")
     '''
     
     '''
     # Plot this up close for debugging
     plt.figure()
-    plt.scatter(mfc_vals_this_region,flow_vals_this_region)
-    x_1 = np.linspace(min(mfc_vals_this_region),max(mfc_vals_this_region),100)
-    plt.plot(x_1,quad_p_0(x_1))
+    plt.scatter(mfc_vals_section,flow_vals_section)
+    x_1 = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
+    plt.plot(x_1,poly1d_section(x_1))
     plt.grid(True)
     plt.xlabel('MFC values')
     plt.ylabel('Flow sensor')
@@ -186,7 +192,7 @@ def calculate_region_stats(mfc_vals_this_region,flow_vals_this_region):
     '''
     
     # Return everything
-    return mfc_vals_this_region,flow_vals_this_region,quad_coeffs_0,quad_p_0,r2_0
+    return mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section
 
 
 def fit_piecewise_equations(mfc_values,flowmeter_values):
@@ -241,7 +247,7 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     i = 1
     # -------------------------------------------------------------
     # --- Get the data & equations for the first section
-    mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section = calculate_region_stats(mfc_values,flowmeter_values)
+    mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section = calculate_section(mfc_values,flowmeter_values)
     # Add this data to the olfa list of dicts
     this_section_dict = {
         "mfc_values": mfc_vals_section,
@@ -253,6 +259,7 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     olfa_data_list.append(this_section_dict)
     mfc_vals_prev_section = mfc_vals_section
 
+    # -------------------------------------------------------------
     # Add this equation to the big plot
     x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
     ax2.plot(x_vals, poly1d_section(x_vals), label=f"Equation {i}", color='orange')
@@ -260,6 +267,7 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     #print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
     i=i+1
     
+    # -------------------------------------------------------------
     # --- Loop it
     while max(mfc_values) not in mfc_vals_prev_section:
         # -------------------------------------------------------------
@@ -275,7 +283,7 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
 
         # -------------------------------------------------------------
         # --- Get the data & equations for this section
-        mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section = calculate_region_stats(mfc_values_this_region,flow_values_this_region)
+        mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section = calculate_section(mfc_values_this_region,flow_values_this_region)
         # Add this data to the olfa list of dicts
         this_section_dict = {
             "mfc_values": mfc_vals_section,
@@ -287,6 +295,7 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
         olfa_data_list.append(this_section_dict)
         mfc_vals_prev_section = mfc_vals_section
 
+        # -------------------------------------------------------------
         # Add this equation to the big plot
         x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
         ax2.plot(x_vals, poly1d_section(x_vals), label=f"Equation {i}")
@@ -299,6 +308,9 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
         '''
         i=i+1
 
+    # The end
+    # Return the LIST of DICTS
+    # Each DICT is a section of data (& the corresponding equation)
     return olfa_data_list
     
     '''
