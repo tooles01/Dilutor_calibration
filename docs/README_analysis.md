@@ -2,51 +2,163 @@
 
 After getting calibration tables for each MFC, use `dilutor_calibration.py` to plot the calibration values.
 
-******Need to enter the **names of the calibration files** and **value to dilute to** at the top of the script
+******Need to enter the **names of the calibration files** and **value to dilute to** at the top of the script  
+<br>
 
-## What it do
+#
+# How does it work?
 
-- Loads the 3 calibration files
-    <details>
+## Load the 3 calibration files
+```python
+mfc_values, flowmeter_values = load_csv(file_path_olfa)
+```
 
-    - For each file:
-        - Get the full directory path:
-            - current directory + 'calibration_tables' + file name
-        - Load the csv in
-            - Start at the third row (first two rows are headers)
-            - Load everything from column 1 into "mfc_values" [list]
-            - Load everything from column 2 into "flowmeter_values" [list]
+#### load_csv
+```mfc_values, flowmeter_values``` : list of float
 
-        Load MFC and flowmeter values from a CSV file.
+<details>
 
-        Parameters
-        ----------
-        full_directory : str
-            Full path to the CSV file, including the file name and extension.
-            The file is expected to have two header rows (which are skipped)
-            followed by data rows with at least two columns:
-                - Column 1: MFC value
-                - Column 2: Flowmeter value
+- For each file:
+    - Get the full directory path:
+        - current directory + 'calibration_tables' + file name (including extension)
+    - Load the csv in
+        - Start at the third row (first two rows are headers)
+        - Load everything from column 1 into "mfc_values" [list]
+        - Load everything from column 2 into "flowmeter_values" [list]
 
-        Returns
-        -------
-        mfc_values : list of float
-            Values from the first column (MFC readings).
-        flowmeter_values : list of float
-            Values from the second column (Flowmeter readings).
+Note:
+Assumes the CSV uses a standard comma delimiter and that all data rows (after the header) contain valid numeric values in the first two columns.
+</details>
+<br>
 
-        Notes
-        -----
-        Assumes the CSV uses a standard comma delimiter and that all data
-        rows (after the header) contain valid numeric values in the first
-        two columns.
-        '''
-    </details>
+#
+## Calculate multiple equations for each MFC
+## fit_piecewise_equations
+```python
+olfa_equations = fit_piecewise_equations(mfc_values, flowmeter_values)
+```
+
+### Initial setup
+- Initialize empty list of dicts    <!--# TODO what will this be-->  
+- Change data type to numpy.ndarray
+- Sort data from lowest to highest
 
 <br>
 
+### Get the data & equations for the first section
+```python
+mfc_vals_section, flow_vals_section, coeffs_section, poly1d_section, r2_section = calculate_section(mfc_values, flowmeter_values)
+```
+```mfc_vals_section, flow_vals_section``` --> Data for this section  
+```coeffs_section, poly1d_section, r2_section``` --> Equations/etc for this section
+    
+#### calculate_section
 
+- Calculates quadratic fit for the data
+- If the R^2 of this is < 0.9995:
+    - Remove the last value from the dataset and recalculate
+    - Keep doing this until we have a small dataset and an equation that fits well  
 
+<details><summary>More Details</summary>
+
+- Calculate quadratic fit for the given data (quad_coeffs_0 = coefficients)
+- Calculate R^2 for the data & the quadratic (r2_0)
+- While R^2 < 0.9995:
+    - Remove one data point from the end of each array
+    - Calculate quadratic fit and R^2 again
+- Return the new dataset
+
+<br>
+
+**Parameters**  
+```mfc_values, flowmeter_values``` : numpy.ndarray
+
+**Returns**  
+```mfc_vals_section, flow_vals_section``` : numpy.ndarray  
+    ---> Shrunk down dataset that fits this equation  
+
+```coeffs_section``` : numpy.ndarray  
+    ---> Coefficients for the equation that fits this data  
+
+```poly1d_section``` : numpy.poly1d  
+    ---> Polynomial class (for easy plotting) <!--# TODO maybe don't need to return this-->  
+
+```r2_section``` : numpy.float64  
+    ---> R^2 for this equation/this section
+</details>
+
+<br>
+
+### Add this data to the olfa list of dicts
+```python
+this_section_dict = {
+    "mfc_values": mfc_vals_section,
+    "flowmeter_values": flow_vals_section,
+    "coefficients": coeffs_section,
+    "poly1d": poly1d_section,
+    "r_2": r2_section
+}
+olfa_data_list.append(this_section_dict)
+```
+
+#### Initialize mfc_vals_prev_section
+```python
+mfc_vals_prev_section = mfc_vals_section
+```
+
+### Now loop through the rest of the data
+Grab the next set of data (Start from max value of the prevous section ---> end of ```mfc_values```)  
+Run the same thing: Shrink the data down until you can make a quadratic fit with a good R^2  
+Add this data to the olfa list of dicts  
+
+<details>
+<br>
+
+**Loop until we hit the end of the data:**
+
+- Define new section:
+    - max value of the previous section ---> end of ```mfc_values```
+
+- Get the data and equations for this section
+    ```python
+    mfc_vals_section,flow_vals_section,coeffs_section,poly1d_section,r2_section = calculate_section(mfc_values_this_region,flow_values_this_region)
+    ```
+
+- Add to the olfa list of dicts
+    ```python
+    this_section_dict = {
+        "mfc_values": mfc_vals_section,
+        "flowmeter_values": flow_vals_section,
+        "coefficients": coeffs_section,
+        "poly1d": poly1d_section,
+        "r_2": r2_section
+    }
+    olfa_data_list.append(this_section_dict)
+    ```
+
+- Reset ```mfc_vals_prev_section```
+    ```python
+    mfc_vals_prev_section = mfc_vals_section
+    ```
+</details>
+
+### Finally: return the list of dicts
+Each dict in the list contains all of the info for one section of data.  
+```python
+return olfa_data_list
+```
+
+#
+## Use these equations to get the MFC settings for a particular flow rate
+
+To be continued..................
+
+<!--
+<br><br><br>
+<br><br><br>
+<br><br><br>
+<br><br><br>
+<br><br><br>
 
 
 
@@ -65,10 +177,7 @@ After getting calibration tables for each MFC, use `dilutor_calibration.py` to p
     - Get the index of where that value is within the big set of data
     - Get starting MFC and flow values for the next set
         - Include the last value from set 1
-        - Get from that value ---> end of the data
-
-
-
+        - Get from that value to end of the data
 
 
 ##########################
@@ -95,6 +204,7 @@ After getting calibration tables for each MFC, use `dilutor_calibration.py` to p
 <br>
 
 - Calculates the setting for the vac MFC
+-->
 
 <!--
 ### Converts the vacuum values
@@ -150,6 +260,7 @@ Fmo(1000) - Fmo(100)
 
 -->
 
+<!--TEMP 9/3/2026
 ## Calculation details
 
 
@@ -175,11 +286,15 @@ $y = F_1 ( x_1, x_0 = 1000)$
 Get the **flow sensor reading** ($y$) at the desired dilution value using the **main olfa MFC function** ($F_0$)
 
 $y = F_0(x_0)$
+-->
+
 
 <!--
 ![image](../images/olfa_calibration_plot.png)
 -->
 
+
+<!-- TEMP 9/3/2026
 Calculate the **air MFC setting** ($x_2$) by plugging that **flow sensor reading** ($y$) into the **air MFC function** ($F_2$)
 
 $y = F_2(x_2)$
@@ -187,6 +302,7 @@ $y = F_2(x_2)$
 Calculate the **vac MFC setting** ($x_1$) by pluggint that **flow sensor reading&** ($y) into the **vac MFC function** ($F_1)$:
 
 $y = F_0(1000-setpoint)$
+-->
 
 <!--
 NOT THIS
