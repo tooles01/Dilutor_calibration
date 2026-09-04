@@ -34,11 +34,12 @@ Assumes the CSV uses a standard comma delimiter and that all data rows (after th
 
 ---
 ## Calculate multiple equations for each MFC
-## fit_piecewise_equations
 ```python
 olfa_equations = fit_piecewise_equations(mfc_values, flowmeter_values)
 ```
 <br>
+
+## fit_piecewise_equations
 
 ### Initial setup
 - Initialize empty list of dicts    <!--# TODO what will this be-->  
@@ -145,6 +146,8 @@ Add this data to the olfa list of dicts
     mfc_vals_prev_section = mfc_vals_section
     ```
 </details>
+
+<br>
 
 ### Finally: return the list of dicts
 Each dict in the list contains all of the info for one section of data.  
