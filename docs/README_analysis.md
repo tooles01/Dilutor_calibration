@@ -8,6 +8,8 @@ After getting calibration tables for each MFC, use `dilutor_calibration.py` to p
 #
 # How does it work?
 
+---
+
 ## Load the 3 calibration files
 ```python
 mfc_values, flowmeter_values = load_csv(file_path_olfa)
@@ -18,25 +20,25 @@ mfc_values, flowmeter_values = load_csv(file_path_olfa)
 
 <details>
 
-- For each file:
-    - Get the full directory path:
-        - current directory + 'calibration_tables' + file name (including extension)
-    - Load the csv in
-        - Start at the third row (first two rows are headers)
-        - Load everything from column 1 into "mfc_values" [list]
-        - Load everything from column 2 into "flowmeter_values" [list]
+- Get the full directory path:
+    - current directory + "\\calibration_tables\\" + ```file name``` (including extension)
+- Load the csv in
+    - Start at the third row (first two rows are headers)
+    - Load everything from column 1 into "mfc_values" [list]
+    - Load everything from column 2 into "flowmeter_values" [list]
 
 Note:
 Assumes the CSV uses a standard comma delimiter and that all data rows (after the header) contain valid numeric values in the first two columns.
 </details>
 <br>
 
-#
+---
 ## Calculate multiple equations for each MFC
 ## fit_piecewise_equations
 ```python
 olfa_equations = fit_piecewise_equations(mfc_values, flowmeter_values)
 ```
+<br>
 
 ### Initial setup
 - Initialize empty list of dicts    <!--# TODO what will this be-->  
@@ -106,6 +108,8 @@ olfa_data_list.append(this_section_dict)
 mfc_vals_prev_section = mfc_vals_section
 ```
 
+<br>
+
 ### Now loop through the rest of the data
 Grab the next set of data (Start from max value of the prevous section ---> end of ```mfc_values```)  
 Run the same thing: Shrink the data down until you can make a quadratic fit with a good R^2  
@@ -148,7 +152,9 @@ Each dict in the list contains all of the info for one section of data.
 return olfa_data_list
 ```
 
-#
+<br>
+
+---
 ## Use these equations to get the MFC settings for a particular flow rate
 
 To be continued..................
