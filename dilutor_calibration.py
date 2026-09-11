@@ -213,22 +213,6 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     Each dict is a 1 section of the data
     '''
     
-    # --- Plot for debugging
-    fig1, (ax1,ax2) = plt.subplots(1,2, figsize=(12,5),sharex=True,sharey=True)
-    ax1.scatter(mfc_values,flowmeter_values)
-    ax1.set_xlabel('MFC setting (SCCM)')
-    ax1.set_ylabel('Flowmeter Reading')
-    ax1.set_title('Initial data')
-    ax2.scatter(mfc_values,flowmeter_values)
-    ax2.set_xlabel('MFC setting (SCCM)')
-    ax2.set_ylabel('Flowmeter Reading')
-    ax2.set_title('Overlaid equations')
-    ax1.grid(True)
-    ax2.grid(True)
-    ax1.set_xlim(-50, 1050)
-    ax1.set_ylim(-.5, 5.5)
-    fig1.canvas.manager.set_window_title('Initial data')
-
     # --- Initialize list of dicts for olfa
     olfa_data_list = []
 
@@ -258,23 +242,15 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     }
     olfa_data_list.append(this_section_dict)
     mfc_vals_prev_section = mfc_vals_section
-
-    # -------------------------------------------------------------
-    # Add this equation to the big plot
-    x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
-    ax2.plot(x_vals, poly1d_section(x_vals), label=f"Equation {i}", color='orange')
-    ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
-    #print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
-    i=i+1
     
+    i=i+1    
     # -------------------------------------------------------------
     # --- Loop it
     while max(mfc_values) not in mfc_vals_prev_section:
         # -------------------------------------------------------------
         # --- Define section starting from the max value of the previous section
-        # Find the maximum MFC value from the previous section
+        # Find the maximum MFC value from the previous section & locate its index in the full dataset
         max_mfc_prev_section = max(mfc_vals_prev_section)
-        # Locate its index in the full dataset
         index = np.where(mfc_values == max_mfc_prev_section)[0][0]  # np.where returns a tuple of arrays; use [0][0] to extract the first occurrence
 
         # Get data from this index onward for the next section
@@ -295,11 +271,6 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
         olfa_data_list.append(this_section_dict)
         mfc_vals_prev_section = mfc_vals_section
 
-        # -------------------------------------------------------------
-        # Add this equation to the big plot
-        x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
-        ax2.plot(x_vals, poly1d_section(x_vals), label=f"Equation {i}")
-        ax2.legend(loc='upper left')    # NOTE: have to call this after plotting data
         '''
         if len(coeffs_section) == 3:
             print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
@@ -449,6 +420,33 @@ def find_section(data_list, target_value):
 
             return section, mfc_value
 
+def plot_data_with_equations(mfc_values, flowmeter_values, olfa_data_list, title):
+
+    # --- Plot for debugging
+    fig1, (ax1,ax2) = plt.subplots(1,2, figsize=(12,5),sharex=True)#,sharey=True)
+    ax1.scatter(mfc_values,flowmeter_values)
+    ax1.set_xlabel('MFC setting (SCCM)')
+    ax1.set_ylabel('Flowmeter Reading')
+    ax1.set_title('Initial data')
+    ax2.scatter(mfc_values,flowmeter_values)
+    ax2.set_xlabel('MFC setting (SCCM)')
+    ax2.set_ylabel('Flowmeter Reading')
+    ax1.grid(True)
+    ax2.grid(True)
+    ax1.set_xlim(-50, 1050)
+    ax1.set_ylim(-.5, 5.5)
+    fig1.canvas.manager.set_window_title('Initial data')
+
+    for section in olfa_data_list:
+        mfc_vals_section = section['mfc_values']
+        poly1d_section = section['poly1d']
+
+        x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
+        ax2.plot(x_vals, poly1d_section(x_vals))
+
+    ax2.set_title(title)
+    ax2.set_ylim(-.5, 5.5)
+
 
 def main():
     '''Load in the 3 csvs'''
@@ -468,6 +466,11 @@ def main():
     air_equations = fit_piecewise_equations(mfc_air,flowmeter_air)
     vac_equations = fit_piecewise_equations(mfc_vac,flowmeter_vac)
 
+    '''Plot each'''
+    plot_data_with_equations(mfc_values,flowmeter_values,olfa_equations,'Olfa MFC Calibration')
+    plot_data_with_equations(mfc_air,flowmeter_air,air_equations,'Air MFC Calibration')
+    plot_data_with_equations(mfc_vac,flowmeter_vac,vac_equations,'Vac MFC Calibration')
+    
     dilute_to = 39
     '''Using these: get the olfa flowmeter value at the number we want to dilute to'''
     olfa_section, olfa_FM_dil_value = find_flow_value_olfa(olfa_equations,dilute_to)
