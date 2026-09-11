@@ -51,6 +51,8 @@ console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(console_handler_formatter)
 logger.addHandler(console_handler)
 
+r2_threshold = 0.9995
+
 def load_csv(full_filepath):
     '''
     Load MFC and flowmeter values from a CSV file.
@@ -144,7 +146,6 @@ def calculate_section(mfc_values,flowmeter_values):
         polynomial
         r^2 value
     '''
-    r2_threshold = 0.9995  # TODO probably can change this to .999
 
     mfc_vals_section = mfc_values
     flow_vals_section = flowmeter_values
@@ -179,6 +180,7 @@ def calculate_section(mfc_values,flowmeter_values):
         coeffs_section = np.polyfit(mfc_vals_section,flow_vals_section,2)
         poly1d_section = np.poly1d(coeffs_section)
         r2_section = r_squared(flow_vals_section,poly1d_section(mfc_vals_section))
+        # TODO also calculate a linear and see if that works better
 
     '''
     # When done: print out the stats
@@ -281,7 +283,7 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
         }
         olfa_data_list.append(this_section_dict)
         mfc_vals_prev_section = mfc_vals_section
-        
+
         '''
         if len(coeffs_section) == 3:
             logger.debug(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
@@ -429,34 +431,28 @@ def find_section(data_list, target_value):
                     # It's a float so nothing to worry about
                     pass
 
-            return section, mfc_value
+            return section, mfc_value   # TODO don't need to return section
 
 def plot_data_with_equations(mfc_values, flowmeter_values, olfa_data_list, title):
 
     # --- Plot for debugging
-    fig1, (ax1,ax2) = plt.subplots(1,2, figsize=(12,5),sharex=True)#,sharey=True)
-    ax1.scatter(mfc_values,flowmeter_values)
-    ax1.set_xlabel('MFC setting (SCCM)')
-    ax1.set_ylabel('Flowmeter Reading')
-    ax1.set_title('Initial data')
-    ax2.scatter(mfc_values,flowmeter_values)
-    ax2.set_xlabel('MFC setting (SCCM)')
-    ax2.set_ylabel('Flowmeter Reading')
-    ax1.grid(True)
-    ax2.grid(True)
-    ax1.set_xlim(-50, 1050)
-    ax1.set_ylim(-.5, 5.5)
-    fig1.canvas.manager.set_window_title('Initial data')
+    plt.figure(figsize=(6,5))
+    plt.scatter(mfc_values,flowmeter_values)
+    plt.xlabel('MFC setting (SCCM)')
+    plt.ylabel('Flowmeter Reading')
+    plt.title(title)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.scatter(mfc_values, flowmeter_values, color='black')
+    plt.xlim(-50, 1050)
+    plt.ylim(-.5, 5.5)
 
     for section in olfa_data_list:
         mfc_vals_section = section['mfc_values']
         poly1d_section = section['poly1d']
 
         x_vals = np.linspace(min(mfc_vals_section),max(mfc_vals_section),100)
-        ax2.plot(x_vals, poly1d_section(x_vals))
-
-    ax2.set_title(title)
-    ax2.set_ylim(-.5, 5.5)
+        plt.plot(x_vals, poly1d_section(x_vals))
 
 
 def main():
@@ -482,15 +478,14 @@ def main():
     plot_data_with_equations(mfc_air,flowmeter_air,air_equations,'Air MFC Calibration')
     plot_data_with_equations(mfc_vac,flowmeter_vac,vac_equations,'Vac MFC Calibration')
     
-    dilute_to = 39
     '''Using these: get the olfa flowmeter value at the number we want to dilute to'''
-    olfa_section, olfa_FM_dil_value = find_flow_value_olfa(olfa_equations,dilute_to)
+    olfa_section, olfa_FM_dil_value = find_flow_value_olfa(olfa_equations,dilute_to) # TODO error when i try and run 970
     logger.info(f"Dilution value: {dilute_to:.2f}")
     logger.info(f"Olfa FM equivalent: {olfa_FM_dil_value:.4f}")
 
     '''Calculate the air MFC value'''
     air_section, air_mfc_value = find_section(air_equations, olfa_FM_dil_value)
-    logger.info(f"Calculated Air MFC value: {air_mfc_value:.2f}")
+    logger.info(f"Calculated Air MFC setting: {air_mfc_value:.2f}")
 
     '''Calculate the vac MFC value'''
     # vac flowmeter value is olfa function at 1000-setpoint
@@ -505,117 +500,92 @@ def main():
     # what equation do we use for this
     olfa_section, vac_fm_value = find_flow_value_olfa(olfa_equations,olfa_val_to_plug_in)
     vac_section, vac_mfc_value = find_section(vac_equations, vac_fm_value)
-    logger.info(f"Calculated Vac MFC value: {vac_mfc_value:.2f}")
-
-
-    '''TODO plot this all so we can check it'''
-    
+    logger.info(f"Calculated Vac MFC setting: {vac_mfc_value:.2f}")
 
     ###################################################################
-    
-    '''Calculate the quadratic fit for MFCs'''
-    # fit is poly1d
-    # poly is the coefficients
-    fit_olfa,poly_olfa = fit_quadratic(mfc_values,flowmeter_values)
-    fit_air,poly_air = fit_quadratic(mfc_air,flowmeter_air)
-    fit_vac,poly_vac = fit_quadratic(mfc_vac,flowmeter_vac)
 
-    '''Get the olfa flowmeter value at the number we want to dilute to'''
-    olfa_FM_dil_value = fit_olfa(dilute_to)
-    logger.info(f"Dilution value: {dilute_to:.2f}")
-    logger.info(f"Olfa FM equivalent: {olfa_FM_dil_value:.4f}")
+    '''Plot for visual'''
+    fig1, (ax1,ax2) = plt.subplots(1,2, figsize=(12,5),sharex=True)#,sharey=True)
+    fig1.canvas.manager.set_window_title('Air MFC Setting')
 
-    ################################################################
+    ax1.scatter(mfc_values,flowmeter_values,color='r')
+    ax1.set_xlabel('MFC setting (SCCM)')
+    ax1.set_ylabel('Flowmeter Reading')
+    ax1.set_title('Olfa MFC Calibration')
+    ax1.grid(True)
+    ax1.set_xlim(-50, 1050)
+    ax1.set_ylim(-.5, 5.5)
+    # Plot the olfa curve for the section
+    olfa_mfc_vals_section = olfa_section['mfc_values']
+    olfa_poly1d_section = olfa_section['poly1d']
+    x_vals_olfa = np.linspace(min(olfa_mfc_vals_section),max(olfa_mfc_vals_section),100)
+    ax1.plot(x_vals_olfa,olfa_poly1d_section(x_vals_olfa),color='k')
+    # Plot horizontal and vertical lines at the dilution value
+    ax1.axhline(y=olfa_FM_dil_value,color='k',label=f'{dilute_to} SCCM = {round(olfa_FM_dil_value,2)} V')
+    ax1.axvline(x=dilute_to,color='k')
 
-    '''Calculate air MFC value'''
-    air_mfc_value = calculate_mfc_quadratic(poly_air,olfa_FM_dil_value)
+    ax2.scatter(mfc_air,flowmeter_air,color='b')
+    ax2.set_xlabel('MFC setting (SCCM)')
+    ax2.set_ylabel('Flowmeter Reading')
+    ax2.set_title('Air MFC Calibration')
+    ax2.grid(True)
+    ax2.set_xlim(-50, 1050)
+    ax2.set_ylim(-.5, 5.5)
+    # Plot the air curve for the section
+    air_mfc_vals_section = air_section['mfc_values']
+    air_poly1d_section = air_section['poly1d']
+    x_vals_air = np.linspace(min(air_mfc_vals_section),max(air_mfc_vals_section),100)
+    ax2.plot(x_vals_air,air_poly1d_section(x_vals_air),color='b')
+    # Plot horizontal and vertical lines at the dilution value
+    ax2.axhline(y=olfa_FM_dil_value,color='k',label=f'{round(olfa_FM_dil_value,2)} V ---> set MFC to {round(air_mfc_value,1)} SCCM')
+    ax2.axvline(x=air_mfc_value,color='k')
 
-    '''Plot olfa and air side by side'''
-    ''' Temp comment 8/21/2026
-    fig_oa, (ax_o1,ax_a) = plt.subplots(1,2, figsize=(12,5),sharex=True,sharey=True)
-    
-    # Olfa
-    x_olfa = np.linspace(min(mfc_values), max(mfc_values), 100)
-    ax_o1.scatter(mfc_values,flowmeter_values,color='r')
-    ax_o1.set_title('Olfa MFC Calibration')
-    ax_o1.plot(x_olfa, fit_olfa(x_olfa),'r',linewidth=2)
-    
-    # Air
-    x_air = np.linspace(min(mfc_air), max(mfc_air), 100)
-    ax_a.scatter(mfc_air,flowmeter_air,color='b')
-    ax_a.set_title('Air MFC Calibration')
-    ax_a.plot(x_air, fit_air(x_air),'b',linewidth=2)
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper left')
+    fig1.tight_layout()
 
-    # Horizontal line at flowmeter value
-    ax_o1.axhline(y=olfa_FM_dil_value,color='k',label=f'{round(olfa_FM_dil_value,2)} V ({dilute_to} SCCM)')
-    ax_a.axhline(y=olfa_FM_dil_value,color='k',label=f'{round(olfa_FM_dil_value,2)} V ---> set MFC to {round(air_mfc_value,2)} SCCM')
-    
-    # Vertical line at MFC setting
-    ax_a.axvline(x=air_mfc_value,color='b')
+    ###################################################################
 
-    ax_o1.grid(True, alpha=0.3)
-    ax_a.grid(True, alpha=0.3)
-    ax_o1.legend(loc='upper left')
-    ax_a.legend(loc='upper left')
-    ax_o1.set_xlabel('MFC setting (SCCM)', fontsize=12)
-    ax_a.set_xlabel('MFC setting (SCCM)', fontsize=12)
-    ax_o1.set_ylabel('Flowmeter Reading (Vdc)', fontsize=12)
-    ax_a.set_ylabel('Flowmeter Reading (Vdc)', fontsize=12)
-    ax_o1.set_xlim([-50, 1050])
-    ax_o1.set_ylim(ylims)
-    fig_oa.tight_layout()
-    '''
-    
-    ################################################################
+    '''Plot for visual'''
+    fig1, (ax1,ax2) = plt.subplots(1,2, figsize=(12,5),sharex=True)#,sharey=True)
+    fig1.canvas.manager.set_window_title('Vac MFC Setting')
 
-    '''Calculate vac MFC value'''
-    # vac flowmeter value is olfa function at 1000-setpoint
-    vac_fm_value = fit_olfa(olfa_max-dilute_to)
-    vac_mfc_value = calculate_mfc_quadratic(poly_vac,vac_fm_value)
+    ax1.scatter(mfc_values,flowmeter_values,color='r')
+    ax1.set_xlabel('MFC setting (SCCM)')
+    ax1.set_ylabel('Flowmeter Reading')
+    ax1.set_title('Olfa MFC Calibration')
+    ax1.grid(True)
+    ax1.set_xlim(-50, 1050)
+    ax1.set_ylim(-.5, 5.5)
+    # Plot the olfa curve for the section
+    olfa_mfc_vals_section = olfa_section['mfc_values']
+    olfa_poly1d_section = olfa_section['poly1d']
+    x_vals_olfa = np.linspace(min(olfa_mfc_vals_section),max(olfa_mfc_vals_section),100)
+    ax1.plot(x_vals_olfa,olfa_poly1d_section(x_vals_olfa),color='k')
+    # Plot horizontal and vertical lines at the dilution value
+    ax1.axhline(y=olfa_FM_dil_value,color='k',label=f'{dilute_to} SCCM = {round(olfa_FM_dil_value,2)} V')
+    ax1.axvline(x=dilute_to,color='k')
 
-    '''Plot olfa and vac side by side'''
-    fig_ov, (ax_o2,ax_v) = plt.subplots(1,2, figsize=(12,5),sharex=True,sharey=True)
-    
-    # Olfa
-    x_olfa = np.linspace(min(mfc_values), max(mfc_values), 100)
-    ax_o2.scatter(mfc_values,flowmeter_values,color='r')
-    ax_o2.set_title('Olfa MFC Calibration')
-    ax_o2.plot(x_olfa, fit_olfa(x_olfa),'r',linewidth=2)
+    ax2.scatter(mfc_vac,flowmeter_vac,color='g')
+    ax2.set_xlabel('MFC setting (SCCM)')
+    ax2.set_ylabel('Flowmeter Reading')
+    ax2.set_title('Vac MFC Calibration')
+    ax2.grid(True)
+    ax2.set_xlim(-50, 1050)
+    ax2.set_ylim(-.5, 5.5)
 
-    # Vac
-    x_vac = np.linspace(min(mfc_vac), max(mfc_vac), 100)
-    ax_v.scatter(mfc_vac,flowmeter_vac,color='g')
-    ax_v.set_title('Vac MFC Calibration')
-    ax_v.plot(x_vac, fit_vac(x_vac),'g',linewidth=2)
-    
-    # Olfa at (1000-dilution value)
-    vac_mfc_dil_value = olfa_max-dilute_to
-    vac_FM_dil_value = fit_olfa(vac_mfc_dil_value)
-    
-    # Horizontal line at flowmeter value
-    ax_o2.axhline(y=vac_FM_dil_value,color='k',label=f'FM at [{olfa_max}-{dilute_to}] SCCM  = ({round(vac_FM_dil_value,2)} V)')
-    ax_v.axhline(y=vac_FM_dil_value,color='k',label=f'{round(vac_FM_dil_value,2)} V ---> set MFC to {round(vac_mfc_value,2)} SCCM')
+    # Plot the vac curve for the section
+    vac_mfc_vals_section = vac_section['mfc_values']
+    vac_poly1d_section = vac_section['poly1d']
+    x_vals_vac = np.linspace(min(vac_mfc_vals_section),max(vac_mfc_vals_section),100)
+    ax2.plot(x_vals_vac,vac_poly1d_section(x_vals_vac),color='g')
+    # Plot horizontal and vertical lines at the dilution value
+    ax2.axhline(y=olfa_FM_dil_value,color='k',label=f'{round(olfa_FM_dil_value,2)} V ---> set MFC to {round(vac_mfc_value,1)} SCCM')
+    ax2.axvline(x=vac_mfc_value,color='k')
 
-    # Vertical line at MFC setting
-    ax_v.axvline(x=vac_mfc_value,color='g')
-    
-    ax_o2.grid(True, alpha=0.3)
-    ax_v.grid(True, alpha=0.3)
-    ax_o2.legend(loc='upper left')
-    ax_v.legend(loc='upper left')
-    ax_o2.set_xlabel('MFC setting (SCCM)', fontsize=12)
-    ax_v.set_xlabel('MFC setting (SCCM)', fontsize=12)
-    ax_o2.set_ylabel('Flowmeter Reading (Vdc)', fontsize=12)
-    ax_v.set_ylabel('Flowmeter Reading (Vdc)', fontsize=12)
-    ax_o2.set_xlim([-50, 1050])
-    ax_o2.set_ylim(ylims)
-    fig_ov.tight_layout()
-    
-    ################################################################
-    
-    logger.info(f"Calculated Air MFC value: {air_mfc_value:.2f}")
-    logger.info(f"Calculated Vac MFC value: {vac_mfc_value:.2f}")
-
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper left')
+    fig1.tight_layout()    
 
 if __name__ == "__main__":
     main()
