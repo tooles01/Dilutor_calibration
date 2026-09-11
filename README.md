@@ -60,7 +60,7 @@ Calibration confirmation instructions
 
 5. Install dependencies
    ```bash
-   pip install PyQt5 pyserial numpy pyqtgraph matplotlib
+   pip install PyQt5 pyserial numpy pyqtgraph matplotlib logging
    ```
 
 6. Run the application
