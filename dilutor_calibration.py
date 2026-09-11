@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.ion()   # Enable interactive mode
 import warnings
+import logging
 
 ################################
 # File names
@@ -40,6 +41,16 @@ file_directory = os.path.join(current_dir,'calibration_tables')
 ylims_V = [.5, 5.5]
 ylims_int = [102, 1126]
 
+# Logger
+logger = logging.getLogger(name='main')
+logger.setLevel(logging.DEBUG)
+logger.propagate = False    # removes duplicate log messages
+console_handler_formatter = logging.Formatter('%(asctime)s : %(levelname)s: %(message)s',datefmt='%H:%M:%S')
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(console_handler_formatter)
+logger.addHandler(console_handler)
+
 def load_csv(full_filepath):
     '''
     Load MFC and flowmeter values from a CSV file.
@@ -67,8 +78,8 @@ def load_csv(full_filepath):
                 mfc_values.append(float(row[0]))           # First column (MFC_value)
                 flowmeter_values.append(float(row[1]))     # Second column (Flowmeter_value)
     except FileNotFoundError as e:
-        print(f"ERROR: File does not exist: {e}")
-        print(f"\t\t This is not going to work")
+        logger.error(f"ERROR: File does not exist: {e}")
+        logger.error(f"\t\t This is not going to work")
 
     return mfc_values,flowmeter_values
 
@@ -95,18 +106,18 @@ def calculate_mfc_quadratic(poly_,olfa_FM_dil_value):
         if np.isreal(solution):
             if (solution > 0) and (solution < 1000):
                 if the_solution is None:
-                    print('\tfound a solution')
+                    logger.debug('\tfound a solution')
                     the_solution = solution
                 else:
-                    print('\tWARNING WARNING found 2 solutions!!!')
+                    logger.warning('\tWARNING WARNING found 2 solutions!!!')
                     return solutions
             else:
-                print('\tsolution is real but not within range')
+                logger.debug('\tsolution is real but not within range')
         else:
-            print('\tsolution is not a real number')
+            logger.debug('\tsolution is not a real number')
     
     if the_solution is None:
-        print("big error: did not get any solutions")
+        logger.error("big error: did not get any solutions")
 
     return the_solution
 
@@ -147,7 +158,7 @@ def calculate_section(mfc_values,flowmeter_values):
             r2_section = r_squared(flow_vals_section, poly1d_section(mfc_vals_section))
 
         except np.exceptions.RankWarning as e:
-            print('RankWarning: need to lower polynomial degree')
+            logger.warning('RankWarning: need to lower polynomial degree')
             # Need to lower the polynomial degree
             coeffs_section = np.polyfit(mfc_vals_section,flow_vals_section,1)
             poly1d_section = np.poly1d(coeffs_section)
@@ -162,7 +173,7 @@ def calculate_section(mfc_values,flowmeter_values):
         # Check how many values are left (if we're down to 5, something prob went wrong)
         i = len(mfc_vals_section)
         if i < 5:
-            print('stop - something went wrong')
+            logger.error('stop - something went wrong')
 
         # Recalculate quadratic & R^2 for the shortened dataset
         coeffs_section = np.polyfit(mfc_vals_section,flow_vals_section,2)
@@ -171,10 +182,10 @@ def calculate_section(mfc_values,flowmeter_values):
 
     '''
     # When done: print out the stats
-    print('got one')
-    print(f"   MFC values: \t\t {min(mfc_vals_section)} - {max(mfc_vals_section)}")
-    print(f"   R^2: \t\t {r2_section}")
-    print(f"   # of values: \t {len(mfc_vals_section)}")
+    logger.debug('got one')
+    logger.debug(f"   MFC values: \t\t {min(mfc_vals_section)} - {max(mfc_vals_section)}")
+    logger.debug(f"   R^2: \t\t {r2_section}")
+    logger.debug(f"   # of values: \t {len(mfc_vals_section)}")
     '''
     
     '''
@@ -242,7 +253,7 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     }
     olfa_data_list.append(this_section_dict)
     mfc_vals_prev_section = mfc_vals_section
-    
+
     i=i+1    
     # -------------------------------------------------------------
     # --- Loop it
@@ -270,12 +281,12 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
         }
         olfa_data_list.append(this_section_dict)
         mfc_vals_prev_section = mfc_vals_section
-
+        
         '''
         if len(coeffs_section) == 3:
-            print(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
+            logger.debug(f"\t V = {coeffs_section[0]:.6f} * SCCM² + {coeffs_section[1]:.6f} * SCCM + {coeffs_section[2]:.6f}")
         else:
-            print(f"\t V = {coeffs_section[0]:.6f} * SCCM + {coeffs_section[1]:.6f}")
+            logger.debug(f"\t V = {coeffs_section[0]:.6f} * SCCM + {coeffs_section[1]:.6f}")
         '''
         i=i+1
 
@@ -297,18 +308,18 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
     # ── Region 1: Linear fit (0–99 SCCM) ──────────────────────────────────
     coeffs_low = np.polyfit(mfc_vals_low, flowmet_low, 1)
     p_low = np.poly1d(coeffs_low)
-    print(f"LOW  (0-99):    V = {coeffs_low[0]:.6f}·SCCM + {coeffs_low[1]:.6f}")
+    logger.debug(f"LOW  (0-99):    V = {coeffs_low[0]:.6f}·SCCM + {coeffs_low[1]:.6f}")
 
     # ── Region 2: Quadratic fit (99–798 SCCM) ─────────────────────────────
     coeffs_mid = np.polyfit(mfc_vals_mid, flowmet_mid, 2)
     p_mid = np.poly1d(coeffs_mid)
-    print(f"MID  (99-798):  V = {coeffs_mid[0]:.2e}·SCCM² + "
+    logger.debug(f"MID  (99-798):  V = {coeffs_mid[0]:.2e}·SCCM² + "
         f"{coeffs_mid[1]:.6f}·SCCM + {coeffs_mid[2]:.6f}")
 
     # ── Region 3: Linear fit (798–963 SCCM) ───────────────────────────────
     coeffs_high = np.polyfit(mfc_vals_high, flowmet_high, 1)
     p_high = np.poly1d(coeffs_high)
-    print(f"HIGH (798-963): V = {coeffs_high[0]:.6f}·SCCM + {coeffs_high[1]:.6f}")
+    logger.debug(f"HIGH (798-963): V = {coeffs_high[0]:.6f}·SCCM + {coeffs_high[1]:.6f}")
 
     # ── R² helper ─────────────────────────────────────────────────────────
     def r_squared(y_actual, y_predicted):
@@ -316,9 +327,9 @@ def fit_piecewise_equations(mfc_values,flowmeter_values):
         ss_tot = np.sum((y_actual - np.mean(y_actual)) ** 2)
         return 1 - ss_res / ss_tot
 
-    print(f"\nR² LOW:  {r_squared(flowmet_low,  p_low(mfc_vals_low)):.6f}")
-    print(f"R² MID:  {r_squared(flowmet_mid,  p_mid(mfc_vals_mid)):.6f}")
-    print(f"R² HIGH: {r_squared(flowmet_high, p_high(mfc_vals_high)):.6f}")
+    logger.debug(f"\nR² LOW:  {r_squared(flowmet_low,  p_low(mfc_vals_low)):.6f}")
+    logger.debug(f"R² MID:  {r_squared(flowmet_mid,  p_mid(mfc_vals_mid)):.6f}")
+    logger.debug(f"R² HIGH: {r_squared(flowmet_high, p_high(mfc_vals_high)):.6f}")
     '''
 
 def find_flow_value_olfa(olfa_data_list, target_value):
@@ -379,8 +390,8 @@ def find_section(data_list, target_value):
                 # Exact match found
                 idx = matching_indicies[0]
                 mfc_value = section["mfc_values"][idx]
-                print(f"Exact match found at index {idx}")
-                print(f"Corresponding flowmeter value: {mfc_value}")
+                logger.info(f"Exact match found at index {idx}")
+                logger.info(f"Corresponding flowmeter value: {mfc_value}")
             else:
                 # No exact match, use the polyfit to get the MFC value
                 coeffs = section["coefficients"]
@@ -404,7 +415,7 @@ def find_section(data_list, target_value):
                 # If there are two solutions... we pick the one that is within this range of mfc values
                 try:
                     if len(mfc_value) > 1:
-                        print('\tSelecting the mfc value that is in this range')
+                        logger.debug('\tSelecting the mfc value that is in this range')
                         min_mfc = min(mfc_vals)
                         max_mfc = max(mfc_vals)
                         # Thoughts and prayers there are only 2
@@ -474,12 +485,12 @@ def main():
     dilute_to = 39
     '''Using these: get the olfa flowmeter value at the number we want to dilute to'''
     olfa_section, olfa_FM_dil_value = find_flow_value_olfa(olfa_equations,dilute_to)
-    print(f"Dilution value: {dilute_to:.2f}")
-    print(f"Olfa FM equivalent: {olfa_FM_dil_value:.4f}")
+    logger.info(f"Dilution value: {dilute_to:.2f}")
+    logger.info(f"Olfa FM equivalent: {olfa_FM_dil_value:.4f}")
 
     '''Calculate the air MFC value'''
     air_section, air_mfc_value = find_section(air_equations, olfa_FM_dil_value)
-    print(f"Calculated Air MFC value: {air_mfc_value:.2f}")
+    logger.info(f"Calculated Air MFC value: {air_mfc_value:.2f}")
 
     '''Calculate the vac MFC value'''
     # vac flowmeter value is olfa function at 1000-setpoint
@@ -494,7 +505,7 @@ def main():
     # what equation do we use for this
     olfa_section, vac_fm_value = find_flow_value_olfa(olfa_equations,olfa_val_to_plug_in)
     vac_section, vac_mfc_value = find_section(vac_equations, vac_fm_value)
-    print(f"Calculated Vac MFC value: {vac_mfc_value:.2f}")
+    logger.info(f"Calculated Vac MFC value: {vac_mfc_value:.2f}")
 
 
     '''TODO plot this all so we can check it'''
@@ -511,8 +522,8 @@ def main():
 
     '''Get the olfa flowmeter value at the number we want to dilute to'''
     olfa_FM_dil_value = fit_olfa(dilute_to)
-    print(f"Dilution value: {dilute_to:.2f}")
-    print(f"Olfa FM equivalent: {olfa_FM_dil_value:.4f}")
+    logger.info(f"Dilution value: {dilute_to:.2f}")
+    logger.info(f"Olfa FM equivalent: {olfa_FM_dil_value:.4f}")
 
     ################################################################
 
@@ -602,8 +613,8 @@ def main():
     
     ################################################################
     
-    print(f"Calculated Air MFC value: {air_mfc_value:.2f}")
-    print(f"Calculated Vac MFC value: {vac_mfc_value:.2f}")
+    logger.info(f"Calculated Air MFC value: {air_mfc_value:.2f}")
+    logger.info(f"Calculated Vac MFC value: {vac_mfc_value:.2f}")
 
 
 if __name__ == "__main__":
