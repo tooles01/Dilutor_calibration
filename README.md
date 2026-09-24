@@ -1,30 +1,46 @@
 # Dilutor calibration
 
-PyQt5 app for calibrating dilutors using Honeywell 3000/5000 series flow sensors
+PyQt5 app for calibrating dilutors using Honeywell 3000/5000 series flow sensors.  
+Calibrates the main olfactometer MFC (1000 SCCM) to the dilutor MFCs.
 
 ---
 
 ## Overview
 
 ### Setup
-- Add flow sensor to final valve output (script for flow sensor found [here](docs/Flow_sensor_driver.md))
+#### Add flow sensor to final valve output (flow sensor details found [here](docs/Flow_sensor_driver.md))
 
 ![image](images/basic_setup.jpeg)
 
 ### Record calibration data
-- Record calibration tables for each of the 3 MFCs (main olfa, vacuum, air)
-   - For each MFC: set to values (0,50,100,150,...)
-   - Record flow sensor reading
-   - Create a calibration table of [MFC value, flow sensor reading]
+#### Record calibration tables for each of the 3 MFCs (main olfa, vacuum, air)
+For each MFC:
+- Set MFC to values (0,50,100,150,...)
+- Record flow sensor reading
+- Create a calibration table of [```MFC value```, ```flow sensor reading```]  
+
+*<p align="center"> Example calibration table:  </p>*
+<p align="center"> <img src="images/example_calibration_table.png" </p>
 
 
 ### Analyze calibration data
-- Fit a curve to each calibration table
+#### Fit a curve to each calibration table
+
+<p align="center">
+   <img src="images/olfa_with_equations.png" width="30%">
+   <img src="images/air_with_equations.png" width="30%">
+   <img src="images/vac_with_equations.png" width="30%">
+</p>
+
 
 ### Implement
 - Enter desired dilution value into the python script
 - Script will output the values to set the dilutor to (vac & air MFCs) to give the accurate dilution value (based on main olfa MFC as "ground truth")
 
+<p align="center">
+   <img src="images/air_500_sccm_example.png" width="30%">
+   <img src="images/final_solution.png" width="50%">
+</p>
 
 #### TODO:
 Calibration confirmation instructions
