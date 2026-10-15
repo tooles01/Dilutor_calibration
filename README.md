@@ -14,8 +14,8 @@ Calibrates the main olfactometer MFC (1000 SCCM) to the dilutor MFCs.
 
 ### Record calibration data
 #### Record calibration tables for each of the 3 MFCs (main olfa, vacuum, air)
-**************Reminder: Check main olfa actual setting**  
----> Since we are communicating via analog signal, the value set via the GUI is not necessarily the value the MFC gets. Record the **actual** setpoint from the MFC
+*******Reminder: Check main olfa actual setting**  
+-------> Since we are communicating via analog signal, the value set via the GUI is not necessarily the value the MFC gets. Record the **actual** setpoint from the MFC
 
 <br>
 
