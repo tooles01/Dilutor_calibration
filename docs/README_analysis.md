@@ -145,6 +145,7 @@ Add this data to the olfa list of dicts
 
 
 ### Finally: return the list of dicts
+
 Each dict in the list contains all of the info for one section of data.  
 ```python
 return olfa_data_list
@@ -153,6 +154,237 @@ return olfa_data_list
 <br>
 
 ---
+
 ## Use these equations to get the MFC settings for a particular flow rate
 
-To be continued..................
+### 1. Find the olfa flowmeter value at the number we want to dilute to
+
+```python
+olfa_section, olfa_FM_dil_value = find_flow_value_olfa(olfa_equations, dilute_to)
+```
+
+<details>
+
+For each section in olfa_data_list:
+- If the target value (dilution value) is within the range of this section:
+    - If the target value is an exact match for any of the calibration values:
+        - Get the corresponding flowmeter value
+    - If not:
+        - Use the polyfit for this section to get the calculated flowmeter value
+</details>
+
+### 2. Calculate the air MFC value
+```python
+air_section, air_mfc_value = find_section(air_equations, olfa_FM_dil_value)
+```
+
+- Find the section where this flowmeter value occurs
+- Solve the quadratic for that section to get the MFC value
+
+    <details>
+
+    For each section in olfa_data_list (data_list/air_equations):
+    - If the target value (olfa_FM_dil_value) is within the range of this section:
+        - If the target value (flowmeter value we want) is an exact match for any of the recorded air MFC flowmeter calibration values:
+            - Get the corresponding MFC value
+        - If not:
+            - Solve the quadratic for the target value to get the MFC value
+                ```python
+                mfc_value = calculate_mfc_quadratic(coeffs, target_value)
+                ```
+            - If there are two solutions (because it's a quadratic):
+                - Pick the solution that within the range of this section
+
+    </details>
+
+### 3. Calculate the vac MFC value
+
+
+
+flowmeter value we want is:
+y = F0(1000-setpoint)
+get the flowmeter value at 
+but we can't do this because it's a different function for every setpoint
+unless we do... 1000-setpoint and then use the function for that???? idfk
+
+
+Find the flowmeter value we need for this
+Get the olfa flowmeter value reading at (1000-dilute_to)
+
+
+
+olfa_val_to_plug_in = olfa_max - dilute_to
+
+Find the vacuum flowmeter value at the number we want to dilute to
+
+
+```python
+olfa_section, vac_fm_value = find_flow_value_olfa(olfa_equations,olfa_val_to_plug_in)
+```
+
+Calculate the vac MFC value
+- Find the section where this flowmeter value occurs
+- Solve the quadratic for that section to get the MFC value
+
+```python
+vac_section, vac_mfc_value = find_section(vac_equations, vac_fm_value)
+```
+
+
+
+
+<!--
+<br><br><br>
+<br><br><br>
+<br><br><br>
+<br><br><br>
+<br><br><br>
+
+
+
+# Update 8/20/2026
+- Sort data from lowest to highest
+- Calculate the quadratic fit & R^2 of the entire set of data
+- Calculate the equation for the first (low) section
+    - While the R^2 is less than 0.9995:
+        - Remove one value from the end of the dataset
+        - Recalculate R^2
+        - Error check: If we get to less than 5 values remaining in the dataset, stop
+    - Get the coefficients and the polynomial for this region
+    - Get the array of MFC values and flow values for this region
+- Prep to calculate data for the next section:
+    - Get the max MFC value from the first set
+    - Get the index of where that value is within the big set of data
+    - Get starting MFC and flow values for the next set
+        - Include the last value from set 1
+        - Get from that value to end of the data
+
+
+##########################
+
+- Calculates quadratic fit for each MFC
+    - We're going to assume this for now because the flow sensor curve is weird
+    - Could pos change to linear interpolation between each set of points, depending on number of points
+    - or do some stats stuff and find the actual best curve
+
+- Gets the flowmeter value ("ground truth") for the olfa MFC ("ground truth") at the value we want to dilute to
+
+
+- Prints that out
+
+
+
+- Calculates the setting for the air MFC 
+    <details>
+
+    calculate_mfc_quadratic
+
+
+
+<br>
+
+- Calculates the setting for the vac MFC
+-->
+
+<!--
+### Converts the vacuum values
+- Get the olfa flowmeter reading at 1000 SCCM (Using the polynomial we just calculated)
+- 4.91 V
+- Adjusted vacuum values = 4.91V (Real 1000 SCCM) - Recorded Vac flowmeter values
+
+<br>
+
+Example:  
+When vacuum is set to 900 SCCM, the flowmeter reading is 2.1 V  
+Check the olfa plot: 2.1 V = 125 SCCM  
+So the vacuum is actually sucking:  
+1000 - 125 = 875 SCCM  
+
+Our data to work with 
+
+-->
+<br>
+
+<!--
+## Dilutor calculation
+
+### Get the olfa flowmeter value at the number we want to dilute to
+
+Example: 970 SCCM = 4.865V
+
+![image](../images/olfa_970_sccm_plot.png)
+
+
+Now 4.865V is the value we are looking for
+
+
+### Air MFC: Find the setpoint that had the same flowmeter output
+
+This means it put out the same amount of air as the olfa
+
+Example: 
+
+![image](air_970_sccm_plot.png)
+
+
+### Vac MFC: find the setpoint that gives us that same flowmeter reading (this one is trickier)
+
+1. Get the olfa flowmeter value at the desired setpoint (ex: 0.2V for 100 SCCM)
+
+Fmo(1000-100)
+NOT
+Fmo(1000) - Fmo(100)
+
+2. Olfa_FM_1000 - Olfa_FM_spt = Vac_FM[x] (ex: 5V - 0.2V = 4.8V)
+3. Plug this into the vacuum curve to find the setpoint we want
+
+-->
+
+<!--TEMP 9/3/2026
+## Calculation details
+
+
+### Equations
+
+$y$ = flow sensor reading  
+$F$ = function for given MFC  
+$x$ = MFC setting  
+
+### Main olfa MFC
+$y = F_0(x_0)$
+
+### Air MFC
+
+$y = F_2(x_2)$
+
+### Vac MFC
+$y = F_1 ( x_1, x_0 = 1000)$
+
+---
+
+
+Get the **flow sensor reading** ($y$) at the desired dilution value using the **main olfa MFC function** ($F_0$)
+
+$y = F_0(x_0)$
+-->
+
+
+<!--
+![image](../images/olfa_calibration_plot.png)
+-->
+
+
+<!-- TEMP 9/3/2026
+Calculate the **air MFC setting** ($x_2$) by plugging that **flow sensor reading** ($y$) into the **air MFC function** ($F_2$)
+
+$y = F_2(x_2)$
+
+Calculate the **vac MFC setting** ($x_1$) by pluggint that **flow sensor reading&** ($y) into the **vac MFC function** ($F_1)$:
+
+$y = F_0(1000-setpoint)$
+-->
+
+<!--
+NOT THIS
+y = F0(1000) - F0(setpoint)
+-->
