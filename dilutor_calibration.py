@@ -97,7 +97,7 @@ def fit_quadratic(mfc_values,flowmeter_values):
 
 def calculate_mfc_quadratic(poly_,olfa_FM_dil_value):
     # Subtract the target value to find where polynomial equals flowmeter_reading
-    coefficients = [poly_[0],poly_[1],poly_[2] - olfa_FM_dil_value] # 8/21/26 why... why are we subtracting....plz
+    coefficients = [poly_[0],poly_[1],poly_[2] - olfa_FM_dil_value] # TODO 8/21/26 why... why are we subtracting....plz
 
     # Solve for x (MFC value)
     solutions = np.roots(coefficients)
@@ -108,10 +108,8 @@ def calculate_mfc_quadratic(poly_,olfa_FM_dil_value):
         if np.isreal(solution):
             if (solution > 0) and (solution < 1000):
                 if the_solution is None:
-                    logger.debug('\tfound a solution')
                     the_solution = solution
                 else:
-                    logger.warning('\tWARNING WARNING found 2 solutions!!!')
                     return solutions
             else:
                 logger.debug('\tsolution is real but not within range')
@@ -160,12 +158,16 @@ def calculate_section(mfc_values,flowmeter_values):
 
         except np.exceptions.RankWarning as e:
             logger.warning('RankWarning: need to lower polynomial degree')
-            # Need to lower the polynomial degree
-            coeffs_section = np.polyfit(mfc_vals_section,flow_vals_section,1)
-            poly1d_section = np.poly1d(coeffs_section)
-            r2_section = r_squared(flow_vals_section, poly1d_section(mfc_vals_section))            
+            try:
+                # Need to lower the polynomial degree - this should resolve the issue
+                coeffs_section = np.polyfit(mfc_vals_section,flow_vals_section,1)
+                poly1d_section = np.poly1d(coeffs_section)
+                r2_section = r_squared(flow_vals_section, poly1d_section(mfc_vals_section))
+            # if there is another rankwarning after this... then we really have a problem
+            except np.exceptions.RankWarning as e:
+                logger.warning('Still have a RankWarning lol')
 
-    # --- Remove one value from the end, recalculate R^2 until it's > 0.9995
+    # --- Remove one value from the end, recalculate R^2 until it's > the threshold
     while r2_section < r2_threshold:
         # Remove one mfc value and one flowmeter value from the end
         mfc_vals_section = mfc_vals_section[0:(len(mfc_vals_section)-1)]
@@ -173,7 +175,7 @@ def calculate_section(mfc_values,flowmeter_values):
 
         # Check how many values are left (if we're down to 5, something prob went wrong)
         i = len(mfc_vals_section)
-        if i < 5:
+        if i < 3:
             logger.error('stop - something went wrong')
 
         # Recalculate quadratic & R^2 for the shortened dataset
@@ -360,7 +362,7 @@ def find_section(data_list, target_value):
 
             return section, mfc_value   # TODO don't need to return section
 
-def plot_data_with_equations(mfc_values, flowmeter_values, olfa_data_list, title):
+def plot_data_with_equations(mfc_values, flowmeter_values, olfa_data_list, title, ylims):
 
     # --- Plot for debugging
     plt.figure(figsize=(6,5))
@@ -372,7 +374,7 @@ def plot_data_with_equations(mfc_values, flowmeter_values, olfa_data_list, title
     plt.tight_layout()
     plt.scatter(mfc_values, flowmeter_values, color='black')
     plt.xlim(-50, 1050)
-    plt.ylim(-.5, 5.5)
+    plt.ylim(ylims)
 
     for section in olfa_data_list:
         mfc_vals_section = section['mfc_values']
@@ -401,9 +403,9 @@ def main():
     vac_equations = fit_piecewise_equations(mfc_vac,flowmeter_vac)
 
     '''Plot each'''
-    plot_data_with_equations(mfc_values,flowmeter_values,olfa_equations,'Olfa MFC Calibration')
-    plot_data_with_equations(mfc_air,flowmeter_air,air_equations,'Air MFC Calibration')
-    plot_data_with_equations(mfc_vac,flowmeter_vac,vac_equations,'Vac MFC Calibration')
+    plot_data_with_equations(mfc_values,flowmeter_values,olfa_equations,'Olfa MFC Calibration',ylims)
+    plot_data_with_equations(mfc_air,flowmeter_air,air_equations,'Air MFC Calibration',ylims)
+    plot_data_with_equations(mfc_vac,flowmeter_vac,vac_equations,'Vac MFC Calibration',ylims)
     
     '''Using these: get the olfa flowmeter value at the number we want to dilute to'''
     olfa_section, olfa_FM_dil_value = find_flow_value_olfa(olfa_equations,dilute_to) # TODO error when i try and run 970
@@ -412,7 +414,7 @@ def main():
 
     '''Calculate the air MFC value'''
     air_section, air_mfc_value = find_section(air_equations, olfa_FM_dil_value)
-    logger.info(f"Calculated Air MFC setting: {air_mfc_value:.2f}")
+    logger.info(f"Calculated Air MFC setting: {air_mfc_value:.1f}")
 
     '''Calculate the vac MFC value'''
     # vac flowmeter value is olfa function at 1000-setpoint
@@ -427,11 +429,11 @@ def main():
     # what equation do we use for this
     olfa_section, vac_fm_value = find_flow_value_olfa(olfa_equations,olfa_val_to_plug_in)
     vac_section, vac_mfc_value = find_section(vac_equations, vac_fm_value)
-    logger.info(f"Calculated Vac MFC setting: {vac_mfc_value:.2f}")
+    logger.info(f"Calculated Vac MFC setting: {vac_mfc_value:.1f}")
 
     ###################################################################
 
-    '''Plot for visual'''
+    '''Plot for visual (Olfa & Air)'''
     fig1, (ax1,ax2) = plt.subplots(1,2, figsize=(12,5),sharex=True)#,sharey=True)
     fig1.canvas.manager.set_window_title('Air MFC Setting')
 
@@ -457,7 +459,7 @@ def main():
     ax2.set_title('Air MFC Calibration')
     ax2.grid(True)
     ax2.set_xlim(-50, 1050)
-    ax2.set_ylim(-.5, 5.5)
+    ax2.set_ylim(ylims)
     # Plot the air curve for the section
     air_mfc_vals_section = air_section['mfc_values']
     air_poly1d_section = air_section['poly1d']
@@ -473,7 +475,7 @@ def main():
 
     ###################################################################
 
-    '''Plot for visual'''
+    '''Plot for visual (Olfa & Vac)'''
     fig1, (ax1,ax2) = plt.subplots(1,2, figsize=(12,5),sharex=True)#,sharey=True)
     fig1.canvas.manager.set_window_title('Vac MFC Setting')
 
@@ -499,7 +501,7 @@ def main():
     ax2.set_title('Vac MFC Calibration')
     ax2.grid(True)
     ax2.set_xlim(-50, 1050)
-    ax2.set_ylim(-.5, 5.5)
+    ax2.set_ylim(ylims)
 
     # Plot the vac curve for the section
     vac_mfc_vals_section = vac_section['mfc_values']
