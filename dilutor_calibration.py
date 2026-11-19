@@ -17,15 +17,15 @@ import logging
 ################################
 # File names
 '''
-olfa_file = '2026-04-17_olfa_mfc.csv'
-air_file = '2026-04-17_air_mfc.csv'
-vac_file = '2026-04-17_vac_mfc.csv'
+olfa_file = '2026-04-17_olfa_mfc'
+air_file = '2026-04-17_air_mfc'
+vac_file = '2026-04-17_vac_mfc'
 olfa_max = 1000
 '''
 
-olfa_file = '2026-08-06_olfa_mfc.csv'
-air_file = '2026-08-06_air_mfc.csv'
-vac_file = '2026-08-06_vac_mfc.csv'
+olfa_file = '2026-08-06_olfa_mfc'
+air_file = '2026-08-06_air_mfc'
+vac_file = '2026-08-06_vac_mfc'
 olfa_max = 958
 
 # Value to dilute to
@@ -126,7 +126,7 @@ def r_squared(y_actual, y_predicted):
     ss_res = np.sum((y_actual - y_predicted) ** 2)
     ss_tot = np.sum((y_actual - np.mean(y_actual)) ** 2)
     return 1 - (ss_res / ss_tot)
-
+    
 def calculate_section(mfc_values,flowmeter_values):
     '''
     Calculate all of the data for a given region
@@ -173,10 +173,13 @@ def calculate_section(mfc_values,flowmeter_values):
         mfc_vals_section = mfc_vals_section[0:(len(mfc_vals_section)-1)]
         flow_vals_section = flow_vals_section[0:(len(flow_vals_section)-1)]
 
-        # Check how many values are left (if we're down to 5, something prob went wrong)
+        # Check how many values are left (if we're down to 2, something prob went wrong)
         i = len(mfc_vals_section)
-        if i < 3:
+        if i < 2:
             logger.error('stop - something went wrong')
+            raise ValueError(
+                f"Something bad happened here"
+            )
 
         # Recalculate quadratic & R^2 for the shortened dataset
         coeffs_section = np.polyfit(mfc_vals_section,flow_vals_section,2)
@@ -305,8 +308,14 @@ def find_flow_value_olfa(olfa_data_list, target_value):
                 polyfit = section["poly1d"]
                 flow_value = polyfit(target_value)
             return section, flow_value
-
-    return None
+    
+    # Nothing matched
+    all_flow = np.concatenate([s["flowmeter_values"] for s in olfa_data_list])
+    raise ValueError(
+        f"Flowmeter value {target_value} is outside the calibrated range "
+        f"[{all_flow.min():.1f}, {all_flow.max():.1f}]. "
+        f"Check units/columns in the CSV or change dilute_to value."
+    )
 
 def find_section(data_list, target_value):
     '''
@@ -360,7 +369,15 @@ def find_section(data_list, target_value):
                     # It's a float so nothing to worry about
                     pass
 
-            return section, mfc_value   # TODO don't need to return section
+            return section, mfc_value
+    
+    # Nothing matched
+    all_flow = np.concatenate([s["flowmeter_values"] for s in data_list])
+    raise ValueError(
+        f"Flowmeter value {target_value} is outside the calibrated range "
+        f"[{all_flow.min():.1f}, {all_flow.max():.1f}]. "
+        f"Check units/columns in the CSV or change dilute_to value."
+    )
 
 def plot_data_with_equations(mfc_values, flowmeter_values, olfa_data_list, title, ylims):
 
@@ -387,10 +404,13 @@ def plot_data_with_equations(mfc_values, flowmeter_values, olfa_data_list, title
 def main():
     '''Load in the 3 csvs'''
     file_path_olfa = os.path.join(file_directory,olfa_file)  # Directory for olfa file
+    file_path_olfa = file_path_olfa + '.csv'
     mfc_values,flowmeter_values = load_csv(file_path_olfa)   # Load the mfc values and flowmeter values    
     file_path_vac = os.path.join(file_directory,vac_file)
+    file_path_vac = file_path_vac + '.csv'
     mfc_vac,flowmeter_vac = load_csv(file_path_vac)
     file_path_air = os.path.join(file_directory,air_file)
+    file_path_air = file_path_air + '.csv'
     mfc_air,flowmeter_air = load_csv(file_path_air)
     
     '''Check if values are V or int (for plotting)'''
@@ -427,7 +447,7 @@ def main():
     # i guess we can start there
     olfa_val_to_plug_in = olfa_max - dilute_to
     # what equation do we use for this
-    olfa_section, vac_fm_value = find_flow_value_olfa(olfa_equations,olfa_val_to_plug_in)
+    olfa_section_vac, vac_fm_value = find_flow_value_olfa(olfa_equations,olfa_val_to_plug_in)
     vac_section, vac_mfc_value = find_section(vac_equations, vac_fm_value)
     logger.info(f"Calculated Vac MFC setting: {vac_mfc_value:.1f}")
 
@@ -443,14 +463,14 @@ def main():
     ax1.set_title('Olfa MFC Calibration')
     ax1.grid(True)
     ax1.set_xlim(-50, 1050)
-    ax1.set_ylim(-.5, 5.5)
+    ax1.set_ylim(ylims)
     # Plot the olfa curve for the section
     olfa_mfc_vals_section = olfa_section['mfc_values']
     olfa_poly1d_section = olfa_section['poly1d']
     x_vals_olfa = np.linspace(min(olfa_mfc_vals_section),max(olfa_mfc_vals_section),100)
     ax1.plot(x_vals_olfa,olfa_poly1d_section(x_vals_olfa),color='k')
     # Plot horizontal and vertical lines at the dilution value
-    ax1.axhline(y=olfa_FM_dil_value,color='k',label=f'{dilute_to} SCCM = {round(olfa_FM_dil_value,2)} V')
+    ax1.axhline(y=olfa_FM_dil_value,color='k',label=f'{dilute_to} SCCM = {round(olfa_FM_dil_value,2)} int')
     ax1.axvline(x=dilute_to,color='k')
 
     ax2.scatter(mfc_air,flowmeter_air,color='b')
@@ -464,9 +484,9 @@ def main():
     air_mfc_vals_section = air_section['mfc_values']
     air_poly1d_section = air_section['poly1d']
     x_vals_air = np.linspace(min(air_mfc_vals_section),max(air_mfc_vals_section),100)
-    ax2.plot(x_vals_air,air_poly1d_section(x_vals_air),color='b')
+    ax2.plot(x_vals_air,air_poly1d_section(x_vals_air),color='k')
     # Plot horizontal and vertical lines at the dilution value
-    ax2.axhline(y=olfa_FM_dil_value,color='k',label=f'{round(olfa_FM_dil_value,2)} V ---> set MFC to {round(air_mfc_value,1)} SCCM')
+    ax2.axhline(y=olfa_FM_dil_value,color='k',label=f'{round(olfa_FM_dil_value,2)} int ---> set MFC to {round(air_mfc_value,1)} SCCM')
     ax2.axvline(x=air_mfc_value,color='k')
 
     ax1.legend(loc='upper left')
@@ -485,14 +505,14 @@ def main():
     ax1.set_title('Olfa MFC Calibration')
     ax1.grid(True)
     ax1.set_xlim(-50, 1050)
-    ax1.set_ylim(-.5, 5.5)
+    ax1.set_ylim(ylims)
     # Plot the olfa curve for the section
-    olfa_mfc_vals_section = olfa_section['mfc_values']
-    olfa_poly1d_section = olfa_section['poly1d']
+    olfa_mfc_vals_section = olfa_section_vac['mfc_values']
+    olfa_poly1d_section = olfa_section_vac['poly1d']
     x_vals_olfa = np.linspace(min(olfa_mfc_vals_section),max(olfa_mfc_vals_section),100)
     ax1.plot(x_vals_olfa,olfa_poly1d_section(x_vals_olfa),color='k')
     # Plot horizontal and vertical lines at the dilution value
-    ax1.axhline(y=olfa_FM_dil_value,color='k',label=f'{dilute_to} SCCM = {round(olfa_FM_dil_value,2)} V')
+    ax1.axhline(y=olfa_FM_dil_value,color='k',label=f'{dilute_to} SCCM = {round(olfa_FM_dil_value,2)} int')
     ax1.axvline(x=dilute_to,color='k')
 
     ax2.scatter(mfc_vac,flowmeter_vac,color='g')
@@ -500,7 +520,6 @@ def main():
     ax2.set_ylabel('Flowmeter Reading')
     ax2.set_title('Vac MFC Calibration')
     ax2.grid(True)
-    ax2.set_xlim(-50, 1050)
     ax2.set_ylim(ylims)
 
     # Plot the vac curve for the section
@@ -509,7 +528,7 @@ def main():
     x_vals_vac = np.linspace(min(vac_mfc_vals_section),max(vac_mfc_vals_section),100)
     ax2.plot(x_vals_vac,vac_poly1d_section(x_vals_vac),color='g')
     # Plot horizontal and vertical lines at the dilution value
-    ax2.axhline(y=olfa_FM_dil_value,color='k',label=f'{round(olfa_FM_dil_value,2)} V ---> set MFC to {round(vac_mfc_value,1)} SCCM')
+    ax2.axhline(y=olfa_FM_dil_value,color='k',label=f'{round(olfa_FM_dil_value,2)} int ---> set MFC to {round(vac_mfc_value,1)} SCCM')
     ax2.axvline(x=vac_mfc_value,color='k')
 
     ax1.legend(loc='upper left')
