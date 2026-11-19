@@ -42,7 +42,7 @@ cal_table_file_tyoe = '.txt'
 def_new_cal_table_name = 'Honeywell_3300V'
 default_cal_table = 'Honeywell_3100V'
 def_MFC_value = '100'
-def_cal_duration = '10'
+def_cal_duration = '20'
 max_calibration_table_value_sccm = '1000'
 
 def get_current_time():
@@ -270,6 +270,7 @@ class flowSensor(QGroupBox):
         cal_file_name = def_new_cal_table_name + '_' + currentDate
         self.cal_file_dir_wid = QLineEdit(text=self.flow_cal_dir)
         self.cal_file_name_wid = QLineEdit(text=cal_file_name)
+        self.cal_file_name_wid.returnPressed.connect(lambda: self.create_new_cal_file_btn.setChecked(True))
 
         # MFC value (SCCM)
         self.mfc_value_wid = QLineEdit(text=def_MFC_value)
@@ -375,12 +376,18 @@ class flowSensor(QGroupBox):
     def create_data_receive_box(self):
         self.data_receive_box = QGroupBox("data received")
 
+        # Display for written received data
         self.receive_box = QTextEdit(readOnly=True)
         receive_box_lbl = QLabel(text="Flow val (int), Flow val (SCCM)")
+
+        # Button for clearing display
+        self.clear_display_btn = QPushButton("Clear")
+        self.clear_display_btn.setToolTip("Clear previous values from display")
+        self.clear_display_btn.clicked.connect(lambda: self.receive_box.clear())
         
-        receive_box_layout = QVBoxLayout()
-        receive_box_layout.addWidget(receive_box_lbl)
-        receive_box_layout.addWidget(self.receive_box)
+        receive_box_layout = QFormLayout()
+        receive_box_layout.addRow(receive_box_lbl,self.clear_display_btn)
+        receive_box_layout.addRow(self.receive_box)
         self.data_receive_box.setLayout(receive_box_layout)
     
     
