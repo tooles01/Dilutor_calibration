@@ -43,6 +43,8 @@
 -->
 
 ### Run calibration
+**Update 11/19/2026:**  
+Set **Time betweeen acquisitions** to 10ms
 
 5. In the **Olfa Driver GUI**:
     - Set both dilutor MFCs to 0 SCCM.
@@ -51,6 +53,8 @@
 6. In the **Flow Sensor GUI**:
     - Enter the main olfa MFC setpoint as **MFC value (SCCM)**
     - Enter the desired duration of the calibration as **Duration (s)** (10-15 seconds is typically sufficient)
+    -  **Update 11/19/2026:**
+        - When using 5 SLPM flow sensor, run a 20 second calibration
 
 <p align="center">
   <img src="../images/duration_and_value.png" width="60%">
@@ -64,7 +68,12 @@
   <img src="../images/calibration_results.png" width="60%">
 </p>
 
+9. **Run the calibration again**
+
 9. **Check if the calibration was successful** by looking at the range of values collected from the flow sensor during the calibration. If the range exceeds 4, repeated trials are recommended.  
+**Update 11/19/2026:**
+When using 5 SLPM flow sensor, the range must not be greater than 3.  
+
 
 **Reminder**: For the main olfa MFC, confirm the actual setpoint by physically looking at the MFC. Write this setpoint to the file.
 
