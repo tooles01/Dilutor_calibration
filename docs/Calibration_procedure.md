@@ -70,35 +70,36 @@ Set **Time betweeen acquisitions** to 10ms
 
 9. **Run the calibration again**
 
-9. **Check if the calibration was successful** by looking at the range of values collected from the flow sensor during the calibration. If the range exceeds 4, repeated trials are recommended.  
-**Update 11/19/2026:**
-When using 5 SLPM flow sensor, the range must not be greater than 3.  
+10. **Check if the calibration was successful** by looking at the range of values collected from the flow sensor during the calibration. If the range exceeds 4, repeated trials are recommended.  
+- **Update 11/19/2026:**
+  - When using 5 SLPM flow sensor, the range must not be greater than 3.  
+  - The difference between both calibrations must be **less than 0.06** [int] (to ensure accuracy of +/- 1 SCCM).
 
 
 **Reminder**: For the main olfa MFC, confirm the actual setpoint by physically looking at the MFC. Write this setpoint to the file.
 
-10. If the calibration was successful, click **Write** to write this pair to the calibration file. If necessary, you can also manually enter the values to write to the file. (Values already written to the file will be displayed in the far right box.)  
+11. If the calibration was successful, click **Write** to write this pair to the calibration file. If necessary, you can also manually enter the values to write to the file. (Values already written to the file will be displayed in the far right box.)  
 
-11. **Repeat for as many values as desired.** (I typically do 10sccm increments, to save time. For more sensitive experiments, 2-5 increments may be more helpful.)
+12. **Repeat for as many values as desired.** (I typically do 10sccm increments, to save time. For more sensitive experiments, 2-5 increments may be more helpful.)
 
 <br>
 
 ### Once complete:
-12. Click **End & Save File**
+13. Click **End & Save File**
 
 
 ## Vacuum MFC calibration
 
-13. Set the Main olfa MFC to 1000 SCCM
-14. (Check that the Air MFC is still set to 0 SCCM)
-15. Update the file name to "vacuum_calibration_thisdate" or whatever
-16. Click **Create File**
-17. Repeat steps 5-12 from the Olfa MFC calibration procedure (but with the vacuum MFC instead of the main olfa MFC)
+14. Set the Main olfa MFC to 1000 SCCM
+15. (Check that the Air MFC is still set to 0 SCCM)
+16. Update the file name to "vacuum_calibration_thisdate" or whatever
+17. Click **Create File**
+18. Repeat steps 5-12 from the Olfa MFC calibration procedure (but with the vacuum MFC instead of the main olfa MFC)
 
 
 ## Air MFC calibration
 
-18. Set the Main olfa MFC and Vacuum MFCs to 0 SCCM.
-19. Update the file name to "air_calibration_thisdate" or whatever
-20. Click **Create File**
-21. Repeat steps 5-12 from the Olfa MFC calibration procedure (but with the air MFC instead of the main olfa MFC)
+19. Set the Main olfa MFC and Vacuum MFCs to 0 SCCM.
+20. Update the file name to "air_calibration_thisdate" or whatever
+21. Click **Create File**
+22. Repeat steps 5-12 from the Olfa MFC calibration procedure (but with the air MFC instead of the main olfa MFC)
