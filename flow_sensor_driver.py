@@ -586,7 +586,7 @@ class flowSensor(QGroupBox):
     
     def analyze_cal_session(self):
         flowVal_median = np.median(self.serial_values)
-        flowVal_mean = round(np.mean(self.serial_values),1)
+        flowVal_mean = round(np.mean(self.serial_values),2)
         
         # TODO drop the max and min values
         try:
@@ -609,7 +609,7 @@ class flowSensor(QGroupBox):
             # Put mean value in the widget so the user can decide whether to keep it or not
             self.this_cal_int_value = flowVal_mean
             if type(self.this_cal_int_value) is np.float64:
-                pair = str(self.this_cal_sccm_value) + ', ' + str(round(self.this_cal_int_value,2))
+                pair = str(self.this_cal_sccm_value) + ', ' + str(self.this_cal_int_value)
                 self.write_to_file_wid.setText(pair)
             else:
                 logger.warning('calculated value was not an int - cannot save this value')
